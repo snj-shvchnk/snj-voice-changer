@@ -30,22 +30,22 @@ namespace SnjVoiceChanger
         private void InitializeComponent()
         {
             leftPanel = new Panel();
+            inputLevelGroupBox = new GroupBox();
+            inputLevelStatusLabel = new Label();
+            inputLevelMeter = new AudioLevelMeterControl();
             virtualMicGroupBox = new GroupBox();
             virtualMicStateValueLabel = new Label();
             virtualMicStateLabel = new Label();
             virtualMicNameValueLabel = new Label();
             virtualMicNameLabel = new Label();
-            inputLevelGroupBox = new GroupBox();
-            inputLevelStatusLabel = new Label();
-            inputLevelMeter = new AudioLevelMeterControl();
             refreshButton = new Button();
             inputDeviceComboBox = new ComboBox();
             inputDeviceLabel = new Label();
             mainPanel = new Panel();
             mainPlaceholderLabel = new Label();
             leftPanel.SuspendLayout();
-            virtualMicGroupBox.SuspendLayout();
             inputLevelGroupBox.SuspendLayout();
+            virtualMicGroupBox.SuspendLayout();
             mainPanel.SuspendLayout();
             SuspendLayout();
             // 
@@ -62,8 +62,41 @@ namespace SnjVoiceChanger
             leftPanel.Margin = new Padding(3, 4, 3, 4);
             leftPanel.Name = "leftPanel";
             leftPanel.Padding = new Padding(16, 19, 16, 19);
-            leftPanel.Size = new Size(468, 600);
+            leftPanel.Size = new Size(468, 610);
             leftPanel.TabIndex = 0;
+            // 
+            // inputLevelGroupBox
+            // 
+            inputLevelGroupBox.Controls.Add(inputLevelStatusLabel);
+            inputLevelGroupBox.Controls.Add(inputLevelMeter);
+            inputLevelGroupBox.Location = new Point(16, 309);
+            inputLevelGroupBox.Margin = new Padding(3, 4, 3, 4);
+            inputLevelGroupBox.Name = "inputLevelGroupBox";
+            inputLevelGroupBox.Padding = new Padding(3, 4, 3, 4);
+            inputLevelGroupBox.Size = new Size(334, 269);
+            inputLevelGroupBox.TabIndex = 4;
+            inputLevelGroupBox.TabStop = false;
+            inputLevelGroupBox.Text = "Input signal";
+            // 
+            // inputLevelStatusLabel
+            // 
+            inputLevelStatusLabel.AutoEllipsis = true;
+            inputLevelStatusLabel.ForeColor = Color.FromArgb(98, 103, 112);
+            inputLevelStatusLabel.Location = new Point(91, 31);
+            inputLevelStatusLabel.Name = "inputLevelStatusLabel";
+            inputLevelStatusLabel.Size = new Size(217, 27);
+            inputLevelStatusLabel.TabIndex = 1;
+            inputLevelStatusLabel.Text = "No input selected";
+            // 
+            // inputLevelMeter
+            // 
+            inputLevelMeter.BackColor = Color.FromArgb(28, 30, 32);
+            inputLevelMeter.ForeColor = SystemColors.ControlDarkDark;
+            inputLevelMeter.Level = 0F;
+            inputLevelMeter.Location = new Point(16, 31);
+            inputLevelMeter.Name = "inputLevelMeter";
+            inputLevelMeter.Size = new Size(74, 226);
+            inputLevelMeter.TabIndex = 0;
             // 
             // virtualMicGroupBox
             // 
@@ -117,37 +150,6 @@ namespace SnjVoiceChanger
             virtualMicNameLabel.TabIndex = 0;
             virtualMicNameLabel.Text = "Name";
             // 
-            // inputLevelGroupBox
-            // 
-            inputLevelGroupBox.Controls.Add(inputLevelStatusLabel);
-            inputLevelGroupBox.Controls.Add(inputLevelMeter);
-            inputLevelGroupBox.Location = new Point(16, 309);
-            inputLevelGroupBox.Margin = new Padding(3, 4, 3, 4);
-            inputLevelGroupBox.Name = "inputLevelGroupBox";
-            inputLevelGroupBox.Padding = new Padding(3, 4, 3, 4);
-            inputLevelGroupBox.Size = new Size(334, 259);
-            inputLevelGroupBox.TabIndex = 4;
-            inputLevelGroupBox.TabStop = false;
-            inputLevelGroupBox.Text = "Input signal";
-            // 
-            // inputLevelStatusLabel
-            // 
-            inputLevelStatusLabel.AutoEllipsis = true;
-            inputLevelStatusLabel.ForeColor = Color.FromArgb(98, 103, 112);
-            inputLevelStatusLabel.Location = new Point(91, 31);
-            inputLevelStatusLabel.Name = "inputLevelStatusLabel";
-            inputLevelStatusLabel.Size = new Size(217, 27);
-            inputLevelStatusLabel.TabIndex = 1;
-            inputLevelStatusLabel.Text = "No input selected";
-            // 
-            // inputLevelMeter
-            // 
-            inputLevelMeter.BackColor = Color.FromArgb(28, 30, 32);
-            inputLevelMeter.Location = new Point(16, 31);
-            inputLevelMeter.Name = "inputLevelMeter";
-            inputLevelMeter.Size = new Size(74, 226);
-            inputLevelMeter.TabIndex = 0;
-            // 
             // refreshButton
             // 
             refreshButton.Location = new Point(358, 75);
@@ -184,11 +186,12 @@ namespace SnjVoiceChanger
             mainPanel.BackColor = Color.White;
             mainPanel.Controls.Add(mainPlaceholderLabel);
             mainPanel.Dock = DockStyle.Fill;
+            mainPanel.ForeColor = SystemColors.ControlDark;
             mainPanel.Location = new Point(468, 0);
             mainPanel.Margin = new Padding(3, 4, 3, 4);
             mainPanel.Name = "mainPanel";
             mainPanel.Padding = new Padding(23, 27, 23, 27);
-            mainPanel.Size = new Size(855, 600);
+            mainPanel.Size = new Size(855, 610);
             mainPanel.TabIndex = 1;
             // 
             // mainPlaceholderLabel
@@ -205,7 +208,7 @@ namespace SnjVoiceChanger
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1323, 600);
+            ClientSize = new Size(1323, 610);
             Controls.Add(mainPanel);
             Controls.Add(leftPanel);
             Margin = new Padding(3, 4, 3, 4);
@@ -214,9 +217,9 @@ namespace SnjVoiceChanger
             Text = "Snj Voice Changer v0";
             leftPanel.ResumeLayout(false);
             leftPanel.PerformLayout();
+            inputLevelGroupBox.ResumeLayout(false);
             virtualMicGroupBox.ResumeLayout(false);
             virtualMicGroupBox.PerformLayout();
-            inputLevelGroupBox.ResumeLayout(false);
             mainPanel.ResumeLayout(false);
             mainPanel.PerformLayout();
             ResumeLayout(false);
