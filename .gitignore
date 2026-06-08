@@ -9,6 +9,7 @@
 ## Build output
 bin/
 obj/
+publish/app/
 [Dd]ebug/
 [Rr]elease/
 x64/
