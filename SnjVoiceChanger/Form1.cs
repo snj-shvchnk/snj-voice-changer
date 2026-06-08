@@ -10,6 +10,7 @@ namespace SnjVoiceChanger
         private readonly System.Windows.Forms.Timer _levelTimer = new();
         private AudioInputLevelMonitor? _inputLevelMonitor;
         private string _nativeVstStatus = "Native VST host unchecked";
+        private string _lastAudioProcessingStatus = string.Empty;
         private bool _isRefreshingDevices;
 
         public MainForm()
@@ -17,6 +18,7 @@ namespace SnjVoiceChanger
             InitializeComponent();
             inputDeviceComboBox.SelectedIndexChanged += InputDeviceComboBox_SelectedIndexChanged;
             outputDeviceComboBox.SelectedIndexChanged += OutputDeviceComboBox_SelectedIndexChanged;
+            InitializeBufferSizeComboBox();
             _levelTimer.Interval = 33;
             _levelTimer.Tick += LevelTimer_Tick;
             _levelTimer.Start();
@@ -56,8 +58,11 @@ namespace SnjVoiceChanger
 
         private void LevelTimer_Tick(object? sender, EventArgs e)
         {
-            inputLevelMeter.Level = _inputLevelMonitor?.GetPeakLevel() ?? 0;
+            inputLevelMeter.Level = _audioRoutingService.IsRunning
+                ? _audioRoutingService.GetInputPeakLevel()
+                : _inputLevelMonitor?.GetPeakLevel() ?? 0;
             outputLevelMeter.Level = _audioRoutingService.GetOutputPeakLevel();
+            UpdateRunningRouteStatus();
         }
 
         private void StartButton_Click(object? sender, EventArgs e)
@@ -74,11 +79,15 @@ namespace SnjVoiceChanger
 
             try
             {
-                _audioRoutingService.Start(inputDevice, outputDevice);
+                StopInputLevelMonitor();
+                _audioRoutingService.Start(
+                    inputDevice,
+                    outputDevice,
+                    GetPluginChainSnapshot(),
+                    GetSelectedBufferSize());
                 startButton.Enabled = false;
                 stopButton.Enabled = true;
-                routingStatusValueLabel.Text = "Running";
-                routingStatusValueLabel.ForeColor = Color.FromArgb(34, 139, 34);
+                UpdateRunningRouteStatus(force: true);
                 outputLevelStatusLabel.Text = outputDevice.Name;
             }
             catch (Exception ex)
@@ -135,6 +144,11 @@ namespace SnjVoiceChanger
                 host.LoadPlugin(plugin.Path);
                 pluginChainListBox.Items.Add(new VstPluginChainItem(plugin.Name, plugin.Path, host));
                 host = null;
+                if (_audioRoutingService.IsRunning)
+                {
+                    StopAudioRoute("Stopped: plugin added");
+                }
+
                 pluginStatusLabel.Text = $"Added: {plugin.Name}";
             }
             catch (NativeVstHostException ex)
@@ -164,6 +178,12 @@ namespace SnjVoiceChanger
 
             var chainItem = pluginChainListBox.SelectedItem as VstPluginChainItem;
             var pluginName = chainItem?.Name ?? pluginChainListBox.SelectedItem?.ToString() ?? "plugin";
+
+            if (_audioRoutingService.IsRunning)
+            {
+                StopAudioRoute("Stopped: plugin removed");
+            }
+
             chainItem?.Dispose();
             pluginChainListBox.Items.RemoveAt(selectedIndex);
 
@@ -201,7 +221,7 @@ namespace SnjVoiceChanger
             {
                 try
                 {
-                    plugin.Host.OpenEditor(editorForm.Handle);
+                    plugin.OpenEditor(editorForm.Handle);
                     editorOpened = true;
                     pluginStatusLabel.Text = $"Editor opened: {plugin.Name}";
                 }
@@ -226,7 +246,7 @@ namespace SnjVoiceChanger
 
                 try
                 {
-                    plugin.Host.CloseEditor();
+                    plugin.CloseEditor();
                 }
                 catch (NativeVstHostException ex)
                 {
@@ -278,6 +298,24 @@ namespace SnjVoiceChanger
             UpdateVirtualCableStatus(inputDevices, outputDevices);
             StartInputLevelMonitor(inputDeviceComboBox.SelectedItem as AudioInputDevice);
             UpdateOutputSelectionStatus();
+        }
+
+        private void InitializeBufferSizeComboBox()
+        {
+            bufferSizeComboBox.Items.Clear();
+            foreach (var size in new[] { 128, 256, 512, 1024, 2048, 4096 })
+            {
+                bufferSizeComboBox.Items.Add(size);
+            }
+
+            bufferSizeComboBox.SelectedItem = 512;
+        }
+
+        private int GetSelectedBufferSize()
+        {
+            return bufferSizeComboBox.SelectedItem is int size
+                ? size
+                : 512;
         }
 
         private void PopulateInputDevices(IReadOnlyList<AudioInputDevice> inputDevices, string? selectedDeviceId)
@@ -368,9 +406,7 @@ namespace SnjVoiceChanger
 
         private void StartInputLevelMonitor(AudioInputDevice? inputDevice)
         {
-            _inputLevelMonitor?.Dispose();
-            _inputLevelMonitor = null;
-            inputLevelMeter.Level = 0;
+            StopInputLevelMonitor();
 
             if (inputDevice is null)
             {
@@ -389,6 +425,13 @@ namespace SnjVoiceChanger
             }
         }
 
+        private void StopInputLevelMonitor()
+        {
+            _inputLevelMonitor?.Dispose();
+            _inputLevelMonitor = null;
+            inputLevelMeter.Level = 0;
+        }
+
         private void UpdateOutputSelectionStatus()
         {
             var outputDevice = outputDeviceComboBox.SelectedItem as AudioOutputDevice;
@@ -401,9 +444,32 @@ namespace SnjVoiceChanger
             outputLevelMeter.Level = 0;
             startButton.Enabled = true;
             stopButton.Enabled = false;
+            _lastAudioProcessingStatus = string.Empty;
             routingStatusValueLabel.Text = status;
             routingStatusValueLabel.ForeColor = Color.FromArgb(98, 103, 112);
             UpdateOutputSelectionStatus();
+            StartInputLevelMonitor(inputDeviceComboBox.SelectedItem as AudioInputDevice);
+        }
+
+        private void UpdateRunningRouteStatus(bool force = false)
+        {
+            if (!_audioRoutingService.IsRunning)
+            {
+                return;
+            }
+
+            var processingStatus = _audioRoutingService.ProcessingStatus;
+            if (!force && processingStatus == _lastAudioProcessingStatus)
+            {
+                return;
+            }
+
+            _lastAudioProcessingStatus = processingStatus;
+            routingStatusValueLabel.Text = $"Running - {processingStatus}";
+            routingStatusValueLabel.ForeColor = _audioRoutingService.IsVstProcessingActive
+                ? Color.FromArgb(34, 139, 34)
+                : Color.FromArgb(184, 117, 28);
+            pluginStatusLabel.Text = processingStatus;
         }
 
         private void RefreshPluginList()
@@ -476,6 +542,21 @@ namespace SnjVoiceChanger
             removePluginButton.Enabled = hasChainSelection;
             openPluginEditorButton.Enabled = hasChainSelection;
             addPluginButton.Enabled = foundPluginsListBox.SelectedItem is VstPluginCandidate;
+        }
+
+        private IReadOnlyList<VstPluginChainItem> GetPluginChainSnapshot()
+        {
+            var pluginChain = new List<VstPluginChainItem>();
+
+            foreach (var item in pluginChainListBox.Items)
+            {
+                if (item is VstPluginChainItem chainItem)
+                {
+                    pluginChain.Add(chainItem);
+                }
+            }
+
+            return pluginChain;
         }
 
         protected override void OnFormClosed(FormClosedEventArgs e)

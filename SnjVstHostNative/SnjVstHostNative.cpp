@@ -5,16 +5,21 @@
 #include "pluginterfaces/gui/iplugview.h"
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
 #include "pluginterfaces/vst/ivsteditcontroller.h"
+#include "pluginterfaces/vst/ivstprocesscontext.h"
+#include "pluginterfaces/vst/vstspeaker.h"
 #include "public.sdk/source/vst/hosting/hostclasses.h"
 #include "public.sdk/source/vst/hosting/module.h"
+#include "public.sdk/source/vst/hosting/parameterchanges.h"
 #include "public.sdk/source/vst/hosting/plugprovider.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
-#include <cstring>
+#include <mutex>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -32,6 +37,7 @@ constexpr int kErrorNoEditor = -10;
 constexpr int kErrorEditorAttach = -11;
 
 const wchar_t kNullHostError[] = L"Invalid host handle.";
+constexpr Steinberg::uint64 kAllChannelsSilent = 0xffffffffffffffffULL;
 
 bool SameViewRect(const Steinberg::ViewRect& left, const Steinberg::ViewRect& right)
 {
@@ -159,6 +165,84 @@ private:
     bool resizeViewInProgress_ = false;
 };
 
+class HostComponentHandler final : public Steinberg::Vst::IComponentHandler
+{
+public:
+    HostComponentHandler()
+        : parameterTransfer_(1000)
+    {
+    }
+
+    Steinberg::tresult PLUGIN_API beginEdit(Steinberg::Vst::ParamID /*id*/) override
+    {
+        return Steinberg::kResultTrue;
+    }
+
+    Steinberg::tresult PLUGIN_API performEdit(
+        Steinberg::Vst::ParamID id,
+        Steinberg::Vst::ParamValue valueNormalized) override
+    {
+        std::lock_guard<std::mutex> lock(parameterTransferMutex_);
+        parameterTransfer_.addChange(id, valueNormalized, 0);
+        return Steinberg::kResultTrue;
+    }
+
+    Steinberg::tresult PLUGIN_API endEdit(Steinberg::Vst::ParamID /*id*/) override
+    {
+        return Steinberg::kResultTrue;
+    }
+
+    Steinberg::tresult PLUGIN_API restartComponent(Steinberg::int32 /*flags*/) override
+    {
+        return Steinberg::kResultTrue;
+    }
+
+    void TransferChangesTo(Steinberg::Vst::ParameterChanges& destination)
+    {
+        std::lock_guard<std::mutex> lock(parameterTransferMutex_);
+        parameterTransfer_.transferChangesTo(destination);
+    }
+
+    void ClearPendingChanges()
+    {
+        std::lock_guard<std::mutex> lock(parameterTransferMutex_);
+        parameterTransfer_.removeChanges();
+    }
+
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID iid, void** obj) override
+    {
+        if (obj == nullptr)
+        {
+            return Steinberg::kInvalidArgument;
+        }
+
+        *obj = nullptr;
+        if (Steinberg::FUnknownPrivate::iidEqual(iid, Steinberg::Vst::IComponentHandler::iid) ||
+            Steinberg::FUnknownPrivate::iidEqual(iid, Steinberg::FUnknown::iid))
+        {
+            *obj = static_cast<Steinberg::Vst::IComponentHandler*>(this);
+            addRef();
+            return Steinberg::kResultTrue;
+        }
+
+        return Steinberg::kNoInterface;
+    }
+
+    Steinberg::uint32 PLUGIN_API addRef() override
+    {
+        return 1000;
+    }
+
+    Steinberg::uint32 PLUGIN_API release() override
+    {
+        return 1000;
+    }
+
+private:
+    std::mutex parameterTransferMutex_;
+    Steinberg::Vst::ParameterChangeTransfer parameterTransfer_;
+};
+
 struct EditorState
 {
     Steinberg::IPtr<Steinberg::Vst::PlugProvider> plugProvider;
@@ -196,6 +280,59 @@ void CloseEditorState(std::unique_ptr<EditorState>& editor)
     }
 }
 
+struct ProcessingState
+{
+    Steinberg::IPtr<Steinberg::Vst::PlugProvider> plugProvider;
+    Steinberg::IPtr<Steinberg::Vst::IComponent> component;
+    Steinberg::IPtr<Steinberg::Vst::IAudioProcessor> processor;
+    Steinberg::Vst::ProcessContext processContext{};
+    Steinberg::Vst::ProcessData processData{};
+    Steinberg::Vst::ParameterChanges inputParameterChanges{1000};
+    std::array<Steinberg::Vst::AudioBusBuffers, 1> inputBuses{};
+    std::array<Steinberg::Vst::AudioBusBuffers, 1> outputBuses{};
+    std::array<Steinberg::Vst::Sample32*, 2> inputChannelPointers{};
+    std::array<Steinberg::Vst::Sample32*, 2> outputChannelPointers{};
+    std::array<std::vector<Steinberg::Vst::Sample32>, 2> inputBuffers;
+    std::array<std::vector<Steinberg::Vst::Sample32>, 2> outputBuffers;
+    double sampleRate = 0.0;
+    int maxBlockSize = 0;
+    int inputChannels = 0;
+    int outputChannels = 0;
+    bool active = false;
+    bool processing = false;
+};
+
+void StopProcessingState(ProcessingState& processing)
+{
+    if (processing.processor && processing.processing)
+    {
+        processing.processor->setProcessing(false);
+    }
+
+    processing.processing = false;
+
+    if (processing.component && processing.active)
+    {
+        processing.component->setActive(false);
+    }
+
+    processing.active = false;
+}
+
+void CloseProcessingState(std::unique_ptr<ProcessingState>& processing)
+{
+    if (!processing)
+    {
+        return;
+    }
+
+    StopProcessingState(*processing);
+    processing->processor = nullptr;
+    processing->component = nullptr;
+    processing->plugProvider = nullptr;
+    processing.reset();
+}
+
 struct SnjVstHost
 {
     std::wstring pluginPath;
@@ -211,11 +348,17 @@ struct SnjVstHost
     std::string selectedEffectClassId;
     std::string selectedEffectClassName;
     Steinberg::Vst::HostApplication pluginContext;
+    HostComponentHandler componentHandler;
+    Steinberg::IPtr<Steinberg::Vst::PlugProvider> plugProvider;
     std::unique_ptr<EditorState> editor;
+    std::unique_ptr<ProcessingState> processing;
 
     ~SnjVstHost()
     {
+        ClearHostParameterState();
         CloseEditorState(editor);
+        CloseProcessingState(processing);
+        plugProvider = nullptr;
         ClearPluginContextIfOwned();
     }
 
@@ -238,7 +381,11 @@ struct SnjVstHost
 
     void ResetPlugin()
     {
+        ClearHostParameterState();
         CloseEditorState(editor);
+        CloseProcessingState(processing);
+        plugProvider = nullptr;
+        ResetProcessingConfiguration();
         ClearPluginContextIfOwned();
         hasSelectedEffectClass = false;
         selectedEffectClassId.clear();
@@ -246,6 +393,20 @@ struct SnjVstHost
         selectedEffectClass = VST3::Hosting::ClassInfo();
         module.reset();
         pluginPath.clear();
+    }
+
+    void ResetProcessingConfiguration()
+    {
+        sampleRate = 0.0;
+        maxBlockSize = 0;
+        inputChannels = 0;
+        outputChannels = 0;
+        processingConfigured = false;
+    }
+
+    void ClearHostParameterState()
+    {
+        componentHandler.ClearPendingChanges();
     }
 
     void ClearPluginContextIfOwned()
@@ -257,6 +418,39 @@ struct SnjVstHost
         }
     }
 };
+
+bool EnsurePluginProvider(SnjVstHost& host, const VST3::Hosting::PluginFactory& factory)
+{
+    if (host.plugProvider)
+    {
+        auto controller = host.plugProvider->getControllerPtr();
+        if (controller)
+        {
+            controller->setComponentHandler(&host.componentHandler);
+        }
+
+        return true;
+    }
+
+    host.plugProvider = Steinberg::owned(new Steinberg::Vst::PlugProvider(
+        factory,
+        host.selectedEffectClass,
+        true));
+
+    if (!host.plugProvider || !host.plugProvider->initialize())
+    {
+        host.plugProvider = nullptr;
+        return false;
+    }
+
+    auto controller = host.plugProvider->getControllerPtr();
+    if (controller)
+    {
+        controller->setComponentHandler(&host.componentHandler);
+    }
+
+    return true;
+}
 
 SnjVstHost* FromHandle(SnjVstHostHandle host)
 {
@@ -374,6 +568,117 @@ std::wstring BuildError(const wchar_t* prefix, const std::string& detail)
 bool IsSupportedChannelCount(int channelCount)
 {
     return channelCount == 1 || channelCount == 2;
+}
+
+Steinberg::Vst::SpeakerArrangement GetSpeakerArrangement(int channelCount)
+{
+    return channelCount == 1 ?
+        Steinberg::Vst::SpeakerArr::kMono :
+        Steinberg::Vst::SpeakerArr::kStereo;
+}
+
+bool HasAudioBus(Steinberg::Vst::IComponent& component, Steinberg::Vst::BusDirection direction)
+{
+    return component.getBusCount(Steinberg::Vst::kAudio, direction) > 0;
+}
+
+bool IsAllSilent(const float* inputInterleaved, int frameCount, int channelCount)
+{
+    if (inputInterleaved == nullptr || frameCount <= 0 || channelCount <= 0)
+    {
+        return true;
+    }
+
+    const size_t sampleCount = static_cast<size_t>(frameCount) *
+        static_cast<size_t>(channelCount);
+    for (size_t sample = 0; sample < sampleCount; ++sample)
+    {
+        if (inputInterleaved[sample] != 0.0f)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void PrepareProcessingData(
+    SnjVstHost& host,
+    ProcessingState& processing,
+    const float* inputInterleaved,
+    int frameCount)
+{
+    processing.inputParameterChanges.clearQueue();
+    host.componentHandler.TransferChangesTo(processing.inputParameterChanges);
+
+    for (int channel = 0; channel < processing.inputChannels; ++channel)
+    {
+        auto& channelBuffer = processing.inputBuffers[static_cast<size_t>(channel)];
+        for (int frame = 0; frame < frameCount; ++frame)
+        {
+            channelBuffer[static_cast<size_t>(frame)] =
+                inputInterleaved[static_cast<size_t>(frame) *
+                    static_cast<size_t>(processing.inputChannels) +
+                    static_cast<size_t>(channel)];
+        }
+
+        processing.inputChannelPointers[static_cast<size_t>(channel)] = channelBuffer.data();
+    }
+
+    for (int channel = 0; channel < processing.outputChannels; ++channel)
+    {
+        auto& channelBuffer = processing.outputBuffers[static_cast<size_t>(channel)];
+        std::fill(
+            channelBuffer.begin(),
+            channelBuffer.begin() + frameCount,
+            0.0f);
+        processing.outputChannelPointers[static_cast<size_t>(channel)] = channelBuffer.data();
+    }
+
+    processing.inputBuses[0].numChannels = processing.inputChannels;
+    processing.inputBuses[0].silenceFlags = IsAllSilent(
+        inputInterleaved,
+        frameCount,
+        processing.inputChannels) ?
+        kAllChannelsSilent :
+        0;
+    processing.inputBuses[0].channelBuffers32 = processing.inputChannelPointers.data();
+
+    processing.outputBuses[0].numChannels = processing.outputChannels;
+    processing.outputBuses[0].silenceFlags = 0;
+    processing.outputBuses[0].channelBuffers32 = processing.outputChannelPointers.data();
+
+    processing.processContext.sampleRate = processing.sampleRate;
+
+    processing.processData.processMode = Steinberg::Vst::kRealtime;
+    processing.processData.symbolicSampleSize = Steinberg::Vst::kSample32;
+    processing.processData.numSamples = frameCount;
+    processing.processData.numInputs = 1;
+    processing.processData.numOutputs = 1;
+    processing.processData.inputs = processing.inputBuses.data();
+    processing.processData.outputs = processing.outputBuses.data();
+    processing.processData.inputParameterChanges = &processing.inputParameterChanges;
+    processing.processData.outputParameterChanges = nullptr;
+    processing.processData.inputEvents = nullptr;
+    processing.processData.outputEvents = nullptr;
+    processing.processData.processContext = &processing.processContext;
+}
+
+void WriteProcessingOutput(
+    const ProcessingState& processing,
+    float* outputInterleaved,
+    int frameCount)
+{
+    for (int frame = 0; frame < frameCount; ++frame)
+    {
+        for (int channel = 0; channel < processing.outputChannels; ++channel)
+        {
+            outputInterleaved[static_cast<size_t>(frame) *
+                static_cast<size_t>(processing.outputChannels) +
+                static_cast<size_t>(channel)] =
+                processing.outputBuffers[static_cast<size_t>(channel)][static_cast<size_t>(frame)];
+        }
+    }
 }
 }
 
@@ -531,11 +836,166 @@ extern "C" SNJVSTHOST_API int SnjVstHost_SetupProcessing(
         return nativeHost->Fail(kErrorUnsupported, L"Only matching channel counts or mono input to stereo output are supported.");
     }
 
+    if (!nativeHost->module || !nativeHost->hasSelectedEffectClass)
+    {
+        return nativeHost->Fail(kErrorNotConfigured, L"No VST3 plugin has been loaded.");
+    }
+
+    CloseProcessingState(nativeHost->processing);
+    nativeHost->ResetProcessingConfiguration();
+    Steinberg::Vst::PluginContextFactory::instance().setPluginContext(&nativeHost->pluginContext);
+
+    const VST3::Hosting::PluginFactory& factory = nativeHost->module->getFactory();
+    if (!factory.get())
+    {
+        return nativeHost->Fail(kErrorNoFactory, L"VST3 module did not provide a plugin factory.");
+    }
+
+    if (!EnsurePluginProvider(*nativeHost, factory))
+    {
+        return nativeHost->Fail(kErrorPluginLoad, L"VST3 plugin component/controller initialization failed.");
+    }
+
+    auto processing = std::make_unique<ProcessingState>();
+    processing->plugProvider = nativeHost->plugProvider;
+    if (!processing->plugProvider)
+    {
+        CloseProcessingState(processing);
+        return nativeHost->Fail(kErrorPluginLoad, L"VST3 plugin component/controller initialization failed.");
+    }
+
+    processing->component = processing->plugProvider->getComponentPtr();
+    if (!processing->component)
+    {
+        CloseProcessingState(processing);
+        return nativeHost->Fail(kErrorPluginLoad, L"VST3 plugin did not provide an audio component.");
+    }
+
+    Steinberg::FUnknownPtr<Steinberg::Vst::IAudioProcessor> processor(processing->component.get());
+    processing->processor = processor;
+    if (!processing->processor)
+    {
+        CloseProcessingState(processing);
+        return nativeHost->Fail(kErrorUnsupported, L"VST3 component does not implement IAudioProcessor.");
+    }
+
+    if (processing->processor->canProcessSampleSize(Steinberg::Vst::kSample32) != Steinberg::kResultTrue)
+    {
+        CloseProcessingState(processing);
+        return nativeHost->Fail(kErrorUnsupported, L"VST3 audio processor does not support 32-bit float processing.");
+    }
+
+    if (!HasAudioBus(*processing->component, Steinberg::Vst::kInput))
+    {
+        CloseProcessingState(processing);
+        return nativeHost->Fail(kErrorUnsupported, L"VST3 audio processor does not provide an audio input bus.");
+    }
+
+    if (!HasAudioBus(*processing->component, Steinberg::Vst::kOutput))
+    {
+        CloseProcessingState(processing);
+        return nativeHost->Fail(kErrorUnsupported, L"VST3 audio processor does not provide an audio output bus.");
+    }
+
+    Steinberg::Vst::SpeakerArrangement inputArrangement = GetSpeakerArrangement(inputChannels);
+    Steinberg::Vst::SpeakerArrangement outputArrangement = GetSpeakerArrangement(outputChannels);
+    if (processing->processor->setBusArrangements(
+        &inputArrangement,
+        1,
+        &outputArrangement,
+        1) != Steinberg::kResultTrue)
+    {
+        CloseProcessingState(processing);
+        return nativeHost->Fail(kErrorUnsupported, L"VST3 audio processor does not support the requested mono/stereo bus arrangement.");
+    }
+
+    const Steinberg::int32 inputBusCount = processing->component->getBusCount(
+        Steinberg::Vst::kAudio,
+        Steinberg::Vst::kInput);
+    for (Steinberg::int32 busIndex = 0; busIndex < inputBusCount; ++busIndex)
+    {
+        const bool activate = busIndex == 0;
+        const Steinberg::tresult result = processing->component->activateBus(
+            Steinberg::Vst::kAudio,
+            Steinberg::Vst::kInput,
+            busIndex,
+            activate);
+        if (activate && result != Steinberg::kResultTrue)
+        {
+            CloseProcessingState(processing);
+            return nativeHost->Fail(kErrorUnsupported, L"VST3 audio processor input bus activation failed.");
+        }
+    }
+
+    const Steinberg::int32 outputBusCount = processing->component->getBusCount(
+        Steinberg::Vst::kAudio,
+        Steinberg::Vst::kOutput);
+    for (Steinberg::int32 busIndex = 0; busIndex < outputBusCount; ++busIndex)
+    {
+        const bool activate = busIndex == 0;
+        const Steinberg::tresult result = processing->component->activateBus(
+            Steinberg::Vst::kAudio,
+            Steinberg::Vst::kOutput,
+            busIndex,
+            activate);
+        if (activate && result != Steinberg::kResultTrue)
+        {
+            CloseProcessingState(processing);
+            return nativeHost->Fail(kErrorUnsupported, L"VST3 audio processor output bus activation failed.");
+        }
+    }
+
+    Steinberg::Vst::ProcessSetup processSetup{};
+    processSetup.processMode = Steinberg::Vst::kRealtime;
+    processSetup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    processSetup.maxSamplesPerBlock = maxBlockSize;
+    processSetup.sampleRate = sampleRate;
+
+    if (processing->processor->setupProcessing(processSetup) != Steinberg::kResultTrue)
+    {
+        CloseProcessingState(processing);
+        return nativeHost->Fail(kErrorPluginLoad, L"VST3 audio processor setupProcessing failed.");
+    }
+
+    if (processing->component->setActive(true) != Steinberg::kResultTrue)
+    {
+        CloseProcessingState(processing);
+        return nativeHost->Fail(kErrorPluginLoad, L"VST3 audio processor activation failed.");
+    }
+
+    processing->active = true;
+
+    // Some VST3 plugins return kResultFalse from setProcessing(true) even after a
+    // successful setupProcessing/setActive path. Treat process() itself as the
+    // authoritative check, otherwise those plugins are permanently bypassed.
+    processing->processor->setProcessing(true);
+    processing->processing = true;
+    processing->sampleRate = sampleRate;
+    processing->maxBlockSize = maxBlockSize;
+    processing->inputChannels = inputChannels;
+    processing->outputChannels = outputChannels;
+    processing->processContext = {};
+    processing->processContext.sampleRate = sampleRate;
+    processing->processContext.tempo = 120.0;
+
+    for (int channel = 0; channel < inputChannels; ++channel)
+    {
+        processing->inputBuffers[static_cast<size_t>(channel)].resize(
+            static_cast<size_t>(maxBlockSize));
+    }
+
+    for (int channel = 0; channel < outputChannels; ++channel)
+    {
+        processing->outputBuffers[static_cast<size_t>(channel)].resize(
+            static_cast<size_t>(maxBlockSize));
+    }
+
     nativeHost->sampleRate = sampleRate;
     nativeHost->maxBlockSize = maxBlockSize;
     nativeHost->inputChannels = inputChannels;
     nativeHost->outputChannels = outputChannels;
     nativeHost->processingConfigured = true;
+    nativeHost->processing = std::move(processing);
     nativeHost->ClearError();
     return kSuccess;
 }
@@ -578,22 +1038,24 @@ extern "C" SNJVSTHOST_API int SnjVstHost_ProcessFloat32(
         return nativeHost->Fail(kErrorInvalidArgument, L"Input and output buffers are required.");
     }
 
-    if (nativeHost->inputChannels == nativeHost->outputChannels)
+    if (!nativeHost->processing || !nativeHost->processing->processor || !nativeHost->processing->processing)
     {
-        const size_t sampleCount = static_cast<size_t>(frameCount) *
-            static_cast<size_t>(nativeHost->inputChannels);
-        std::memcpy(outputInterleaved, inputInterleaved, sampleCount * sizeof(float));
-    }
-    else
-    {
-        for (int frame = 0; frame < frameCount; ++frame)
-        {
-            const float sample = inputInterleaved[frame];
-            outputInterleaved[frame * 2] = sample;
-            outputInterleaved[frame * 2 + 1] = sample;
-        }
+        return nativeHost->Fail(kErrorNotConfigured, L"VST3 audio processor is not configured for processing.");
     }
 
+    if (nativeHost->processing->outputChannels <= 0)
+    {
+        return nativeHost->Fail(kErrorUnsupported, L"VST3 audio processor has no configured output channels.");
+    }
+
+    PrepareProcessingData(*nativeHost, *nativeHost->processing, inputInterleaved, frameCount);
+
+    if (nativeHost->processing->processor->process(nativeHost->processing->processData) != Steinberg::kResultTrue)
+    {
+        return nativeHost->Fail(kErrorPluginLoad, L"VST3 audio processor process failed.");
+    }
+
+    WriteProcessingOutput(*nativeHost->processing, outputInterleaved, frameCount);
     nativeHost->ClearError();
     return kSuccess;
 }
@@ -627,30 +1089,19 @@ extern "C" SNJVSTHOST_API int SnjVstHost_OpenEditor(
         return nativeHost->Fail(kErrorNoFactory, L"VST3 module did not provide a plugin factory.");
     }
 
-    auto editor = std::make_unique<EditorState>();
-    editor->plugProvider = Steinberg::owned(new Steinberg::Vst::PlugProvider(
-        factory,
-        nativeHost->selectedEffectClass,
-        true));
-
-    if (!editor->plugProvider)
+    if (!EnsurePluginProvider(*nativeHost, factory))
     {
-        CloseEditorState(editor);
         return nativeHost->Fail(kErrorPluginLoad, L"VST3 plugin component/controller initialization failed.");
     }
 
-    const bool providerInitialized = editor->plugProvider->initialize();
+    auto editor = std::make_unique<EditorState>();
+    editor->plugProvider = nativeHost->plugProvider;
+
     editor->controller = editor->plugProvider->getControllerPtr();
     if (!editor->controller)
     {
         CloseEditorState(editor);
         return nativeHost->Fail(kErrorNoEditor, L"VST3 plugin does not provide an edit controller.");
-    }
-
-    if (!providerInitialized)
-    {
-        CloseEditorState(editor);
-        return nativeHost->Fail(kErrorPluginLoad, L"VST3 plugin component/controller initialization failed.");
     }
 
     editor->plugView = Steinberg::owned(editor->controller->createView(Steinberg::Vst::ViewType::kEditor));
@@ -701,7 +1152,6 @@ extern "C" SNJVSTHOST_API void SnjVstHost_CloseEditor(SnjVstHostHandle host)
     if (nativeHost != nullptr)
     {
         CloseEditorState(nativeHost->editor);
-        nativeHost->ClearPluginContextIfOwned();
         nativeHost->ClearError();
     }
 }

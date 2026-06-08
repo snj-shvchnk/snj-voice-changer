@@ -65,6 +65,9 @@
     <ClCompile Include="..\third_party\vst3sdk\public.sdk\source\vst\hosting\module_win32.cpp">
       <Filter>SDK Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\third_party\vst3sdk\public.sdk\source\vst\hosting\parameterchanges.cpp">
+      <Filter>SDK Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\third_party\vst3sdk\public.sdk\source\vst\hosting\plugprovider.cpp">
       <Filter>SDK Source Files</Filter>
     </ClCompile>

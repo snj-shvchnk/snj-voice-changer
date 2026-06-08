@@ -48,6 +48,8 @@ namespace SnjVoiceChanger
             stopButton = new Button();
             startButton = new Button();
             refreshButton = new Button();
+            bufferSizeComboBox = new ComboBox();
+            bufferSizeLabel = new Label();
             outputDeviceComboBox = new ComboBox();
             outputDeviceLabel = new Label();
             inputDeviceComboBox = new ComboBox();
@@ -73,9 +75,9 @@ namespace SnjVoiceChanger
             pluginChainGroupBox.SuspendLayout();
             foundPluginsGroupBox.SuspendLayout();
             SuspendLayout();
-            // 
+            //
             // leftPanel
-            // 
+            //
             leftPanel.BackColor = Color.FromArgb(246, 247, 249);
             leftPanel.Controls.Add(outputLevelGroupBox);
             leftPanel.Controls.Add(inputLevelGroupBox);
@@ -83,6 +85,8 @@ namespace SnjVoiceChanger
             leftPanel.Controls.Add(stopButton);
             leftPanel.Controls.Add(startButton);
             leftPanel.Controls.Add(refreshButton);
+            leftPanel.Controls.Add(bufferSizeComboBox);
+            leftPanel.Controls.Add(bufferSizeLabel);
             leftPanel.Controls.Add(outputDeviceComboBox);
             leftPanel.Controls.Add(outputDeviceLabel);
             leftPanel.Controls.Add(inputDeviceComboBox);
@@ -94,12 +98,12 @@ namespace SnjVoiceChanger
             leftPanel.Padding = new Padding(16, 19, 16, 19);
             leftPanel.Size = new Size(366, 610);
             leftPanel.TabIndex = 0;
-            // 
+            //
             // outputLevelGroupBox
-            // 
+            //
             outputLevelGroupBox.Controls.Add(outputLevelStatusLabel);
             outputLevelGroupBox.Controls.Add(outputLevelMeter);
-            outputLevelGroupBox.Location = new Point(16, 459);
+            outputLevelGroupBox.Location = new Point(16, 491);
             outputLevelGroupBox.Margin = new Padding(3, 4, 3, 4);
             outputLevelGroupBox.Name = "outputLevelGroupBox";
             outputLevelGroupBox.Padding = new Padding(3, 4, 3, 4);
@@ -132,7 +136,7 @@ namespace SnjVoiceChanger
             // 
             inputLevelGroupBox.Controls.Add(inputLevelStatusLabel);
             inputLevelGroupBox.Controls.Add(inputLevelMeter);
-            inputLevelGroupBox.Location = new Point(16, 333);
+            inputLevelGroupBox.Location = new Point(16, 365);
             inputLevelGroupBox.Margin = new Padding(3, 4, 3, 4);
             inputLevelGroupBox.Name = "inputLevelGroupBox";
             inputLevelGroupBox.Padding = new Padding(3, 4, 3, 4);
@@ -170,7 +174,7 @@ namespace SnjVoiceChanger
             virtualCableGroupBox.Controls.Add(cableInputLabel);
             virtualCableGroupBox.Controls.Add(cableOutputValueLabel);
             virtualCableGroupBox.Controls.Add(cableOutputLabel);
-            virtualCableGroupBox.Location = new Point(16, 185);
+            virtualCableGroupBox.Location = new Point(16, 217);
             virtualCableGroupBox.Margin = new Padding(3, 4, 3, 4);
             virtualCableGroupBox.Name = "virtualCableGroupBox";
             virtualCableGroupBox.Padding = new Padding(3, 4, 3, 4);
@@ -257,7 +261,7 @@ namespace SnjVoiceChanger
             // stopButton
             // 
             stopButton.Enabled = false;
-            stopButton.Location = new Point(211, 145);
+            stopButton.Location = new Point(211, 177);
             stopButton.Margin = new Padding(3, 4, 3, 4);
             stopButton.Name = "stopButton";
             stopButton.Size = new Size(91, 28);
@@ -268,7 +272,7 @@ namespace SnjVoiceChanger
             // 
             // startButton
             // 
-            startButton.Location = new Point(114, 145);
+            startButton.Location = new Point(114, 177);
             startButton.Margin = new Padding(3, 4, 3, 4);
             startButton.Name = "startButton";
             startButton.Size = new Size(91, 28);
@@ -279,7 +283,7 @@ namespace SnjVoiceChanger
             // 
             // refreshButton
             // 
-            refreshButton.Location = new Point(16, 145);
+            refreshButton.Location = new Point(16, 177);
             refreshButton.Margin = new Padding(3, 4, 3, 4);
             refreshButton.Name = "refreshButton";
             refreshButton.Size = new Size(91, 28);
@@ -287,6 +291,25 @@ namespace SnjVoiceChanger
             refreshButton.Text = "Refresh";
             refreshButton.UseVisualStyleBackColor = true;
             refreshButton.Click += RefreshButton_Click;
+            //
+            // bufferSizeComboBox
+            //
+            bufferSizeComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+            bufferSizeComboBox.FormattingEnabled = true;
+            bufferSizeComboBox.Location = new Point(99, 141);
+            bufferSizeComboBox.Name = "bufferSizeComboBox";
+            bufferSizeComboBox.Size = new Size(91, 28);
+            bufferSizeComboBox.TabIndex = 10;
+            //
+            // bufferSizeLabel
+            //
+            bufferSizeLabel.AutoSize = true;
+            bufferSizeLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            bufferSizeLabel.Location = new Point(16, 145);
+            bufferSizeLabel.Name = "bufferSizeLabel";
+            bufferSizeLabel.Size = new Size(78, 20);
+            bufferSizeLabel.TabIndex = 11;
+            bufferSizeLabel.Text = "Buffer";
             // 
             // outputDeviceComboBox
             // 
@@ -513,6 +536,8 @@ namespace SnjVoiceChanger
         private Label outputDeviceLabel;
         private ComboBox outputDeviceComboBox;
         private Button refreshButton;
+        private Label bufferSizeLabel;
+        private ComboBox bufferSizeComboBox;
         private Button startButton;
         private Button stopButton;
         private GroupBox virtualCableGroupBox;
