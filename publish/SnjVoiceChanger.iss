@@ -37,5 +37,5 @@ Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 Name: "{commondesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\common\VBCABLE_Driver_Pack45\VBCABLE_Setup_x64.exe"; Description: "Install VB-CABLE virtual audio driver"; Flags: postinstall shellexec skipifsilent unchecked
-Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: postinstall nowait skipifsilent unchecked
+Filename: "{app}\common\VBCABLE_Driver_Pack45\VBCABLE_Setup_x64.exe"; Description: "Install VB-CABLE virtual audio driver"; Flags: postinstall shellexec skipifsilent
+Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: postinstall nowait skipifsilent
