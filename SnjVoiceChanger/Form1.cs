@@ -9,6 +9,7 @@ namespace SnjVoiceChanger
         private readonly VstPluginScanner _vstPluginScanner = new();
         private readonly System.Windows.Forms.Timer _levelTimer = new();
         private AudioInputLevelMonitor? _inputLevelMonitor;
+        private readonly Dictionary<VstPluginChainItem, Form> _pluginEditorForms = new();
         private string _nativeVstStatus = "Native VST host unchecked";
         private string _lastAudioProcessingStatus = string.Empty;
         private bool _isRefreshingDevices;
@@ -169,7 +170,12 @@ namespace SnjVoiceChanger
                 StopAudioRouteForInternalRestart();
             }
 
-            chainItem?.Dispose();
+            if (chainItem is not null)
+            {
+                ClosePluginEditor(chainItem);
+                chainItem.Dispose();
+            }
+
             pluginChainListBox.Items.RemoveAt(selectedIndex);
 
             if (pluginChainListBox.Items.Count > 0)
@@ -189,6 +195,16 @@ namespace SnjVoiceChanger
             UpdatePluginChainButtons();
         }
 
+        private void movePluginUpButton_Click(object? sender, EventArgs e)
+        {
+            MoveSelectedPlugin(-1);
+        }
+
+        private void movePluginDownButton_Click(object? sender, EventArgs e)
+        {
+            MoveSelectedPlugin(1);
+        }
+
         private void openPluginEditorButton_Click(object? sender, EventArgs e)
         {
             if (pluginChainListBox.SelectedItem is not VstPluginChainItem plugin)
@@ -197,7 +213,23 @@ namespace SnjVoiceChanger
                 return;
             }
 
-            using var editorForm = new Form
+            OpenPluginEditor(plugin);
+        }
+
+        private void OpenPluginEditor(VstPluginChainItem plugin)
+        {
+            if (_pluginEditorForms.TryGetValue(plugin, out var existingEditor))
+            {
+                if (!existingEditor.IsDisposed)
+                {
+                    existingEditor.Activate();
+                    return;
+                }
+
+                _pluginEditorForms.Remove(plugin);
+            }
+
+            var editorForm = new Form
             {
                 Text = $"{plugin.Name} editor",
                 StartPosition = FormStartPosition.CenterParent,
@@ -206,9 +238,11 @@ namespace SnjVoiceChanger
                 MinimizeBox = false,
                 FormBorderStyle = FormBorderStyle.FixedSingle,
                 MaximizeBox = false,
+                ShowInTaskbar = false,
             };
 
             var editorOpened = false;
+            _pluginEditorForms[plugin] = editorForm;
 
             editorForm.Shown += (_, _) =>
             {
@@ -232,6 +266,8 @@ namespace SnjVoiceChanger
 
             editorForm.FormClosed += (_, _) =>
             {
+                _pluginEditorForms.Remove(plugin);
+
                 if (!editorOpened)
                 {
                     return;
@@ -251,7 +287,7 @@ namespace SnjVoiceChanger
                 }
             };
 
-            editorForm.ShowDialog(this);
+            editorForm.Show(this);
         }
 
         private static void ShowEditorError(Form editorForm, string message, string pluginPath)
@@ -271,9 +307,33 @@ namespace SnjVoiceChanger
             UpdatePluginChainButtons();
         }
 
+        private void pluginChainListBox_MouseDoubleClick(object? sender, MouseEventArgs e)
+        {
+            var clickedIndex = pluginChainListBox.IndexFromPoint(e.Location);
+            if (clickedIndex < 0)
+            {
+                return;
+            }
+
+            pluginChainListBox.SelectedIndex = clickedIndex;
+            openPluginEditorButton_Click(sender, EventArgs.Empty);
+        }
+
         private void foundPluginsListBox_SelectedIndexChanged(object? sender, EventArgs e)
         {
             UpdatePluginChainButtons();
+        }
+
+        private void foundPluginsListBox_MouseDoubleClick(object? sender, MouseEventArgs e)
+        {
+            var clickedIndex = foundPluginsListBox.IndexFromPoint(e.Location);
+            if (clickedIndex < 0)
+            {
+                return;
+            }
+
+            foundPluginsListBox.SelectedIndex = clickedIndex;
+            addPluginButton_Click(sender, EventArgs.Empty);
         }
 
         private void RefreshAudioDevices()
@@ -600,10 +660,51 @@ namespace SnjVoiceChanger
 
         private void UpdatePluginChainButtons()
         {
+            var selectedIndex = pluginChainListBox.SelectedIndex;
             var hasChainSelection = pluginChainListBox.SelectedItem is VstPluginChainItem;
+            movePluginUpButton.Enabled = hasChainSelection && selectedIndex > 0;
+            movePluginDownButton.Enabled = hasChainSelection && selectedIndex < pluginChainListBox.Items.Count - 1;
             removePluginButton.Enabled = hasChainSelection;
             openPluginEditorButton.Enabled = hasChainSelection;
             addPluginButton.Enabled = foundPluginsListBox.SelectedItem is VstPluginCandidate;
+        }
+
+        private void MoveSelectedPlugin(int direction)
+        {
+            var selectedIndex = pluginChainListBox.SelectedIndex;
+            var targetIndex = selectedIndex + direction;
+
+            if (selectedIndex < 0 ||
+                targetIndex < 0 ||
+                targetIndex >= pluginChainListBox.Items.Count ||
+                pluginChainListBox.SelectedItem is not VstPluginChainItem chainItem)
+            {
+                UpdatePluginChainButtons();
+                return;
+            }
+
+            var wasRunning = _audioRoutingService.IsRunning;
+            if (wasRunning)
+            {
+                StopAudioRouteForInternalRestart();
+            }
+
+            pluginChainListBox.Items.RemoveAt(selectedIndex);
+            pluginChainListBox.Items.Insert(targetIndex, chainItem);
+            pluginChainListBox.SelectedIndex = targetIndex;
+
+            if (wasRunning)
+            {
+                var directionName = direction < 0 ? "up" : "down";
+                TryRestartAudioRouteAfterChainChange($"Moved {directionName}: {chainItem.Name}");
+            }
+            else
+            {
+                var directionName = direction < 0 ? "up" : "down";
+                pluginStatusLabel.Text = $"Moved {directionName}: {chainItem.Name}";
+            }
+
+            UpdatePluginChainButtons();
         }
 
         private IReadOnlyList<VstPluginChainItem> GetPluginChainSnapshot()
@@ -626,8 +727,38 @@ namespace SnjVoiceChanger
             _levelTimer.Stop();
             _audioRoutingService.Dispose();
             _inputLevelMonitor?.Dispose();
+            CloseAllPluginEditors();
             DisposePluginChain();
             base.OnFormClosed(e);
+        }
+
+        private void ClosePluginEditor(VstPluginChainItem plugin)
+        {
+            if (!_pluginEditorForms.TryGetValue(plugin, out var editorForm))
+            {
+                return;
+            }
+
+            if (editorForm.IsDisposed)
+            {
+                _pluginEditorForms.Remove(plugin);
+                return;
+            }
+
+            editorForm.Close();
+        }
+
+        private void CloseAllPluginEditors()
+        {
+            foreach (var editorForm in _pluginEditorForms.Values.ToArray())
+            {
+                if (!editorForm.IsDisposed)
+                {
+                    editorForm.Close();
+                }
+            }
+
+            _pluginEditorForms.Clear();
         }
 
         private void DisposePluginChain()

@@ -57,6 +57,8 @@ namespace SnjVoiceChanger
             mainPanel = new Panel();
             pluginChainGroupBox = new GroupBox();
             pluginChainListBox = new ListBox();
+            movePluginDownButton = new Button();
+            movePluginUpButton = new Button();
             openPluginEditorButton = new Button();
             removePluginButton = new Button();
             addPluginButton = new Button();
@@ -111,9 +113,9 @@ namespace SnjVoiceChanger
             outputLevelGroupBox.TabIndex = 9;
             outputLevelGroupBox.TabStop = false;
             outputLevelGroupBox.Text = "Output signal";
-            // 
+            //
             // outputLevelStatusLabel
-            // 
+            //
             outputLevelStatusLabel.AutoEllipsis = true;
             outputLevelStatusLabel.ForeColor = Color.FromArgb(98, 103, 112);
             outputLevelStatusLabel.Location = new Point(91, 31);
@@ -121,9 +123,9 @@ namespace SnjVoiceChanger
             outputLevelStatusLabel.Size = new Size(217, 27);
             outputLevelStatusLabel.TabIndex = 1;
             outputLevelStatusLabel.Text = "No output selected";
-            // 
+            //
             // outputLevelMeter
-            // 
+            //
             outputLevelMeter.BackColor = Color.FromArgb(28, 30, 32);
             outputLevelMeter.ForeColor = SystemColors.ControlDarkDark;
             outputLevelMeter.Location = new Point(16, 31);
@@ -374,6 +376,8 @@ namespace SnjVoiceChanger
             // pluginChainGroupBox
             // 
             pluginChainGroupBox.Controls.Add(pluginChainListBox);
+            pluginChainGroupBox.Controls.Add(movePluginDownButton);
+            pluginChainGroupBox.Controls.Add(movePluginUpButton);
             pluginChainGroupBox.Controls.Add(openPluginEditorButton);
             pluginChainGroupBox.Controls.Add(removePluginButton);
             pluginChainGroupBox.Location = new Point(23, 333);
@@ -392,16 +396,41 @@ namespace SnjVoiceChanger
             pluginChainListBox.Name = "pluginChainListBox";
             pluginChainListBox.Size = new Size(770, 184);
             pluginChainListBox.TabIndex = 0;
+            pluginChainListBox.MouseDoubleClick += pluginChainListBox_MouseDoubleClick;
             pluginChainListBox.SelectedIndexChanged += pluginChainListBox_SelectedIndexChanged;
-            // 
+            //
+            // movePluginDownButton
+            //
+            movePluginDownButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            movePluginDownButton.Enabled = false;
+            movePluginDownButton.Location = new Point(800, 68);
+            movePluginDownButton.Name = "movePluginDownButton";
+            movePluginDownButton.Size = new Size(94, 31);
+            movePluginDownButton.TabIndex = 2;
+            movePluginDownButton.Text = "Down";
+            movePluginDownButton.UseVisualStyleBackColor = true;
+            movePluginDownButton.Click += movePluginDownButton_Click;
+            //
+            // movePluginUpButton
+            //
+            movePluginUpButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            movePluginUpButton.Enabled = false;
+            movePluginUpButton.Location = new Point(800, 31);
+            movePluginUpButton.Name = "movePluginUpButton";
+            movePluginUpButton.Size = new Size(94, 31);
+            movePluginUpButton.TabIndex = 1;
+            movePluginUpButton.Text = "Up";
+            movePluginUpButton.UseVisualStyleBackColor = true;
+            movePluginUpButton.Click += movePluginUpButton_Click;
+            //
             // openPluginEditorButton
             // 
             openPluginEditorButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             openPluginEditorButton.Enabled = false;
-            openPluginEditorButton.Location = new Point(800, 68);
+            openPluginEditorButton.Location = new Point(800, 142);
             openPluginEditorButton.Name = "openPluginEditorButton";
             openPluginEditorButton.Size = new Size(94, 31);
-            openPluginEditorButton.TabIndex = 2;
+            openPluginEditorButton.TabIndex = 4;
             openPluginEditorButton.Text = "Editor";
             openPluginEditorButton.UseVisualStyleBackColor = true;
             openPluginEditorButton.Click += openPluginEditorButton_Click;
@@ -410,10 +439,10 @@ namespace SnjVoiceChanger
             // 
             removePluginButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             removePluginButton.Enabled = false;
-            removePluginButton.Location = new Point(800, 31);
+            removePluginButton.Location = new Point(800, 105);
             removePluginButton.Name = "removePluginButton";
             removePluginButton.Size = new Size(94, 31);
-            removePluginButton.TabIndex = 1;
+            removePluginButton.TabIndex = 3;
             removePluginButton.Text = "Remove";
             removePluginButton.UseVisualStyleBackColor = true;
             removePluginButton.Click += removePluginButton_Click;
@@ -450,6 +479,7 @@ namespace SnjVoiceChanger
             foundPluginsListBox.Name = "foundPluginsListBox";
             foundPluginsListBox.Size = new Size(878, 124);
             foundPluginsListBox.TabIndex = 0;
+            foundPluginsListBox.MouseDoubleClick += foundPluginsListBox_MouseDoubleClick;
             foundPluginsListBox.SelectedIndexChanged += foundPluginsListBox_SelectedIndexChanged;
             // 
             // pluginStatusLabel
@@ -566,6 +596,8 @@ namespace SnjVoiceChanger
         private Button addPluginButton;
         private GroupBox pluginChainGroupBox;
         private ListBox pluginChainListBox;
+        private Button movePluginDownButton;
+        private Button movePluginUpButton;
         private Button removePluginButton;
         private Button openPluginEditorButton;
     }
