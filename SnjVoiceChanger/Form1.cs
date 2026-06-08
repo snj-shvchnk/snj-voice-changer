@@ -1,7 +1,28 @@
+using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
+
 namespace SnjVoiceChanger
 {
     public partial class MainForm : Form
     {
+        private static readonly Color DarkAppBackground = Color.FromArgb(18, 18, 18);
+        private static readonly Color DarkSidebarBackground = Color.FromArgb(30, 30, 30);
+        private static readonly Color DarkSurface = Color.FromArgb(35, 35, 35);
+        private static readonly Color DarkControlBackground = Color.FromArgb(24, 24, 24);
+        private static readonly Color DarkButtonBackground = Color.FromArgb(43, 43, 43);
+        private static readonly Color DarkButtonHover = Color.FromArgb(55, 55, 55);
+        private static readonly Color DarkButtonPressed = Color.FromArgb(65, 65, 65);
+        private static readonly Color DarkButtonDisabled = Color.FromArgb(31, 31, 31);
+        private static readonly Color DarkButtonDisabledText = Color.FromArgb(104, 104, 104);
+        private static readonly Color DarkBorder = Color.FromArgb(58, 58, 58);
+        private static readonly Color DarkSoftBorder = Color.FromArgb(112, 112, 112);
+        private static readonly Color DarkPrimaryText = Color.FromArgb(234, 234, 234);
+        private static readonly Color DarkSecondaryText = Color.FromArgb(166, 166, 166);
+        private static readonly Color DarkAccentGreen = Color.FromArgb(74, 222, 128);
+        private static readonly Color DarkAccentOrange = Color.FromArgb(245, 176, 84);
+        private static readonly Color DarkDanger = Color.FromArgb(255, 107, 107);
+        private const int DarkCornerRadius = 5;
+
         private readonly AudioInputDeviceScanner _audioInputDeviceScanner = new();
         private readonly AudioOutputDeviceScanner _audioOutputDeviceScanner = new();
         private readonly VirtualCableService _virtualCableService = new();
@@ -19,6 +40,7 @@ namespace SnjVoiceChanger
         public MainForm()
         {
             InitializeComponent();
+            ApplyDarkTheme();
             var applicationIcon = LoadApplicationIcon();
             if (applicationIcon is not null)
             {
@@ -37,6 +59,15 @@ namespace SnjVoiceChanger
             RefreshAudioDevices();
         }
 
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            EnableDarkTitleBar();
+        }
+
         private static Icon? LoadApplicationIcon()
         {
             try
@@ -52,6 +83,280 @@ namespace SnjVoiceChanger
             catch
             {
                 return null;
+            }
+        }
+
+        private void EnableDarkTitleBar()
+        {
+            try
+            {
+                var enabled = 1;
+                var result = DwmSetWindowAttribute(Handle, 20, ref enabled, sizeof(int));
+                if (result != 0)
+                {
+                    DwmSetWindowAttribute(Handle, 19, ref enabled, sizeof(int));
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private void ApplyDarkTheme()
+        {
+            BackColor = DarkAppBackground;
+            ForeColor = DarkPrimaryText;
+            ApplyDarkThemeRecursive(this);
+
+            leftPanel.BackColor = DarkSidebarBackground;
+            mainPanel.BackColor = DarkAppBackground;
+
+            inputLevelMeter.BackColor = DarkControlBackground;
+            outputLevelMeter.BackColor = DarkControlBackground;
+
+            inputLevelStatusLabel.ForeColor = DarkSecondaryText;
+            outputLevelStatusLabel.ForeColor = DarkSecondaryText;
+            cableOutputValueLabel.ForeColor = DarkPrimaryText;
+            cableInputValueLabel.ForeColor = DarkPrimaryText;
+            cableStateValueLabel.ForeColor = DarkSecondaryText;
+            routingStatusValueLabel.ForeColor = DarkSecondaryText;
+            latencyStatusValueLabel.ForeColor = DarkSecondaryText;
+            pluginStatusLabel.ForeColor = DarkSecondaryText;
+            copyrightLabel.ForeColor = Color.FromArgb(142, 149, 160);
+            copyrightLabel.Cursor = Cursors.Hand;
+        }
+
+        private static void ApplyDarkThemeRecursive(Control control)
+        {
+            switch (control)
+            {
+                case Panel panel:
+                    panel.BackColor = DarkAppBackground;
+                    panel.ForeColor = DarkPrimaryText;
+                    break;
+
+                case GroupBox groupBox:
+                    groupBox.BackColor = DarkSurface;
+                    groupBox.ForeColor = DarkPrimaryText;
+                    groupBox.Paint -= DrawDarkGroupBox;
+                    groupBox.Paint += DrawDarkGroupBox;
+                    break;
+
+                case Button button:
+                    button.UseVisualStyleBackColor = false;
+                    button.FlatStyle = FlatStyle.Flat;
+                    button.BackColor = DarkButtonBackground;
+                    button.ForeColor = DarkPrimaryText;
+                    button.FlatAppearance.BorderSize = 0;
+                    button.FlatAppearance.BorderColor = DarkSoftBorder;
+                    button.FlatAppearance.MouseOverBackColor = DarkButtonHover;
+                    button.FlatAppearance.MouseDownBackColor = DarkButtonPressed;
+                    button.Paint -= DrawDarkButton;
+                    button.Paint += DrawDarkButton;
+                    button.EnabledChanged -= InvalidateDarkButton;
+                    button.EnabledChanged += InvalidateDarkButton;
+                    break;
+
+                case TextBox textBox:
+                    textBox.BackColor = DarkControlBackground;
+                    textBox.ForeColor = DarkPrimaryText;
+                    textBox.BorderStyle = BorderStyle.FixedSingle;
+                    break;
+
+                case ComboBox comboBox:
+                    comboBox.BackColor = DarkControlBackground;
+                    comboBox.ForeColor = DarkPrimaryText;
+                    comboBox.FlatStyle = FlatStyle.Flat;
+                    comboBox.DrawMode = DrawMode.OwnerDrawFixed;
+                    if (comboBox is DarkComboBox darkComboBox)
+                    {
+                        darkComboBox.ApplyTheme(
+                            DarkControlBackground,
+                            DarkPrimaryText,
+                            DarkButtonHover,
+                            DarkSoftBorder,
+                            DarkSecondaryText,
+                            DarkCornerRadius);
+                    }
+                    else
+                    {
+                        comboBox.DrawItem -= DrawDarkComboBoxItem;
+                        comboBox.DrawItem += DrawDarkComboBoxItem;
+                    }
+                    break;
+
+                case ListBox listBox:
+                    listBox.BackColor = DarkControlBackground;
+                    listBox.ForeColor = DarkPrimaryText;
+                    listBox.BorderStyle = BorderStyle.None;
+                    break;
+
+                case Label label:
+                    label.BackColor = Color.Transparent;
+                    label.ForeColor = DarkPrimaryText;
+                    break;
+            }
+
+            foreach (Control child in control.Controls)
+            {
+                ApplyDarkThemeRecursive(child);
+            }
+        }
+
+        private static void InvalidateDarkButton(object? sender, EventArgs e)
+        {
+            if (sender is Control control)
+            {
+                control.Invalidate();
+            }
+        }
+
+        private static void DrawDarkButton(object? sender, PaintEventArgs e)
+        {
+            if (sender is not Button button)
+            {
+                return;
+            }
+
+            var background = button.Enabled
+                ? DarkButtonBackground
+                : DarkButtonDisabled;
+            var foreground = button.Enabled
+                ? DarkPrimaryText
+                : DarkButtonDisabledText;
+            var border = button.Enabled
+                ? DarkSoftBorder
+                : DarkBorder;
+
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            e.Graphics.Clear(button.Parent?.BackColor ?? DarkAppBackground);
+
+            using var backgroundBrush = new SolidBrush(background);
+            var borderBounds = new Rectangle(0, 0, button.Width - 1, button.Height - 1);
+            using var buttonPath = CreateRoundedRectanglePath(borderBounds, DarkCornerRadius);
+            e.Graphics.FillPath(backgroundBrush, buttonPath);
+
+            using var borderPen = new Pen(border);
+            e.Graphics.DrawPath(borderPen, buttonPath);
+
+            TextRenderer.DrawText(
+                e.Graphics,
+                button.Text,
+                button.Font,
+                button.ClientRectangle,
+                foreground,
+                TextFormatFlags.HorizontalCenter |
+                TextFormatFlags.VerticalCenter |
+                TextFormatFlags.EndEllipsis |
+                TextFormatFlags.NoPrefix);
+        }
+
+        private static void DrawDarkGroupBox(object? sender, PaintEventArgs e)
+        {
+            if (sender is not GroupBox groupBox)
+            {
+                return;
+            }
+
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            e.Graphics.Clear(groupBox.Parent?.BackColor ?? DarkAppBackground);
+
+            var textSize = TextRenderer.MeasureText(groupBox.Text, groupBox.Font);
+            var borderTop = Math.Max(8, textSize.Height / 2);
+            var borderBounds = new Rectangle(
+                0,
+                borderTop,
+                Math.Max(0, groupBox.Width - 1),
+                Math.Max(0, groupBox.Height - borderTop - 1));
+
+            using var borderPath = CreateRoundedRectanglePath(borderBounds, DarkCornerRadius);
+            using var groupBackgroundBrush = new SolidBrush(groupBox.BackColor);
+            e.Graphics.FillPath(groupBackgroundBrush, borderPath);
+
+            using var borderPen = new Pen(DarkSoftBorder);
+            e.Graphics.DrawPath(borderPen, borderPath);
+
+            var textBounds = new Rectangle(8, 0, textSize.Width + 8, textSize.Height);
+            using var textBackgroundBrush = new SolidBrush(groupBox.BackColor);
+            e.Graphics.FillRectangle(textBackgroundBrush, textBounds);
+
+            TextRenderer.DrawText(
+                e.Graphics,
+                groupBox.Text,
+                groupBox.Font,
+                new Rectangle(10, 0, textSize.Width, textSize.Height),
+                DarkPrimaryText,
+                TextFormatFlags.Left |
+                TextFormatFlags.VerticalCenter |
+                TextFormatFlags.NoPrefix);
+        }
+
+        private static GraphicsPath CreateRoundedRectanglePath(Rectangle bounds, int radius)
+        {
+            var path = new GraphicsPath();
+            var diameter = Math.Max(1, radius * 2);
+
+            if (bounds.Width <= diameter || bounds.Height <= diameter)
+            {
+                path.AddRectangle(bounds);
+                path.CloseFigure();
+                return path;
+            }
+
+            path.AddArc(bounds.Left, bounds.Top, diameter, diameter, 180, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Top, diameter, diameter, 270, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(bounds.Left, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+
+            return path;
+        }
+
+        private static void DrawDarkComboBoxItem(object? sender, DrawItemEventArgs e)
+        {
+            if (sender is not ComboBox comboBox)
+            {
+                return;
+            }
+
+            var isSelected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+            var isDisabled = (e.State & DrawItemState.Disabled) == DrawItemState.Disabled || !comboBox.Enabled;
+            var background = isSelected && !isDisabled
+                ? DarkButtonHover
+                : DarkControlBackground;
+            var foreground = isDisabled
+                ? DarkSecondaryText
+                : DarkPrimaryText;
+
+            using var backgroundBrush = new SolidBrush(background);
+            e.Graphics.FillRectangle(backgroundBrush, e.Bounds);
+
+            var text = e.Index >= 0 && e.Index < comboBox.Items.Count
+                ? comboBox.GetItemText(comboBox.Items[e.Index])
+                : comboBox.Text;
+
+            var textBounds = new Rectangle(
+                e.Bounds.Left + 4,
+                e.Bounds.Top,
+                Math.Max(0, e.Bounds.Width - 8),
+                e.Bounds.Height);
+
+            TextRenderer.DrawText(
+                e.Graphics,
+                text,
+                comboBox.Font,
+                textBounds,
+                foreground,
+                TextFormatFlags.VerticalCenter |
+                TextFormatFlags.Left |
+                TextFormatFlags.EndEllipsis |
+                TextFormatFlags.NoPrefix);
+
+            if ((e.State & DrawItemState.Focus) == DrawItemState.Focus)
+            {
+                using var focusPen = new Pen(DarkBorder);
+                var focusBounds = Rectangle.Inflate(e.Bounds, -1, -1);
+                e.Graphics.DrawRectangle(focusPen, focusBounds);
             }
         }
 
@@ -276,6 +581,8 @@ namespace SnjVoiceChanger
                 FormBorderStyle = FormBorderStyle.FixedSingle,
                 MaximizeBox = false,
                 ShowInTaskbar = false,
+                BackColor = DarkAppBackground,
+                ForeColor = DarkPrimaryText,
             };
 
             var editorOpened = false;
@@ -333,6 +640,8 @@ namespace SnjVoiceChanger
             editorForm.Controls.Add(new Label
             {
                 AutoEllipsis = true,
+                BackColor = DarkAppBackground,
+                ForeColor = DarkPrimaryText,
                 Dock = DockStyle.Fill,
                 Padding = new Padding(18),
                 Text = $"{message}\r\n\r\n{pluginPath}",
@@ -567,8 +876,8 @@ namespace SnjVoiceChanger
             cableInputValueLabel.Text = virtualCableStatus.InputDeviceName;
             cableStateValueLabel.Text = virtualCableStatus.Message;
             cableStateValueLabel.ForeColor = virtualCableStatus.IsReady
-                ? Color.FromArgb(34, 139, 34)
-                : Color.FromArgb(178, 34, 34);
+                ? DarkAccentGreen
+                : DarkDanger;
         }
 
         private static int GetPreferredDropDownWidth<T>(ComboBox comboBox, IReadOnlyList<T> devices)
@@ -627,7 +936,7 @@ namespace SnjVoiceChanger
             stopButton.Enabled = false;
             _lastAudioProcessingStatus = string.Empty;
             routingStatusValueLabel.Text = status;
-            routingStatusValueLabel.ForeColor = Color.FromArgb(98, 103, 112);
+            routingStatusValueLabel.ForeColor = DarkSecondaryText;
             UpdateLatencyStatus();
             UpdateOutputSelectionStatus();
             StartInputLevelMonitor(inputDeviceComboBox.SelectedItem as AudioInputDevice);
@@ -672,7 +981,7 @@ namespace SnjVoiceChanger
             if (inputDevice is null || outputDevice is null)
             {
                 routingStatusValueLabel.Text = "Select input and output";
-                routingStatusValueLabel.ForeColor = Color.FromArgb(178, 34, 34);
+                routingStatusValueLabel.ForeColor = DarkDanger;
                 startButton.Enabled = true;
                 stopButton.Enabled = false;
                 return false;
@@ -696,7 +1005,7 @@ namespace SnjVoiceChanger
             {
                 StopAudioRoute("Error");
                 routingStatusValueLabel.Text = ex.Message;
-                routingStatusValueLabel.ForeColor = Color.FromArgb(178, 34, 34);
+                routingStatusValueLabel.ForeColor = DarkDanger;
                 pluginStatusLabel.Text = ex.Message;
                 return false;
             }
@@ -718,8 +1027,8 @@ namespace SnjVoiceChanger
             _lastAudioProcessingStatus = processingStatus;
             routingStatusValueLabel.Text = $"Running - {processingStatus}";
             routingStatusValueLabel.ForeColor = _audioRoutingService.IsVstProcessingActive
-                ? Color.FromArgb(34, 139, 34)
-                : Color.FromArgb(184, 117, 28);
+                ? DarkAccentGreen
+                : DarkAccentOrange;
             pluginStatusLabel.Text = processingStatus;
         }
 

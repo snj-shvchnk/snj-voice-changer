@@ -1,45 +1,76 @@
-# Snj Voice Changer v0
+# Snj Voice Changer
 
-Snj Voice Changer is an experimental real-time voice changer for Windows. The long-term goal is to capture a microphone input, process it through a configurable VST plugin chain, and expose the processed audio as a virtual microphone that can be selected in apps like Google Meet, Discord, or Chrome.
+<p align="center">
+  <img src="SnjVoiceChanger/Assets/app.png" alt="Snj Voice Changer" width="220">
+</p>
 
-## Current Status
+Snj Voice Changer is a Windows desktop voice changer for routing a real microphone through a VST plugin chain and into a virtual audio cable. The app is built as a C# WinForms tool with a native VST3 host layer.
 
-This repository currently contains the first WinForms prototype built with .NET 9.
+The current practical workflow is:
 
-Implemented:
+```text
+Real microphone -> Snj Voice Changer -> VST3 chain -> CABLE Input -> CABLE Output -> Google Meet / Discord / Chrome
+```
 
-- Lists active Windows input audio devices.
-- Shows full CoreAudio device friendly names.
-- Displays a live input signal level meter for the selected microphone.
-- Shows virtual microphone detection status for `Snj Voice Changer`.
+## What Works
 
-Not implemented yet:
+- Select a Windows input device.
+- Select an output device, usually `CABLE Input` from VB-CABLE.
+- Detect the paired VB-CABLE endpoints.
+- Route live microphone audio to the selected output device.
+- Scan a VST3 plugin folder.
+- Add VST3 plugins to a processing chain.
+- Open plugin editors in separate windows.
+- Reorder, remove, enable, and bypass chain plugins.
+- Show input/output level meters and compact latency diagnostics.
 
-- Virtual microphone driver.
-- Real-time audio routing.
-- VST plugin loading.
-- VST chain editing and processing.
+## Ready Builds
 
-## Virtual Microphone Note
+Prebuilt archives are stored in [`dist`](dist):
 
-A normal WinForms application cannot create a Windows recording endpoint by itself. For `Snj Voice Changer` to appear as a selectable microphone in Chrome or Google Meet, the project will need a virtual audio driver or integration with an existing virtual audio cable solution.
+- `SnjVoiceChanger_v1.0.7z` - current recommended build.
 
-The current prototype only detects whether such an endpoint already exists.
+Older prototype archives may also be kept there for history.
+
+Unpack the archive and run `SnjVoiceChanger.exe`.
 
 ## Requirements
 
 - Windows
-- Visual Studio 2022 or newer
-- .NET 9 SDK
+- VB-Audio Virtual Cable or a compatible virtual audio cable
+- A VST3 plugin folder if you want effects
 
-## Run
+VB-CABLE creates two important endpoints:
 
-Open `SnjVoiceChanger.sln` in Visual Studio and run the `SnjVoiceChanger` project.
+- Playback endpoint: `CABLE Input`
+- Recording endpoint: `CABLE Output`
 
-## Roadmap
+Snj Voice Changer sends processed audio to `CABLE Input`; apps like Google Meet should use `CABLE Output` as their microphone.
 
-1. Confirm the virtual microphone strategy.
-2. Add audio capture and routing pipeline.
-3. Add VST plugin discovery and loading.
-4. Add editable VST chain UI.
-5. Route processed audio into the virtual microphone endpoint.
+## Quick Start
+
+1. Install VB-CABLE if it is not installed yet.
+2. Unpack the latest archive from [`dist`](dist).
+3. Run `SnjVoiceChanger.exe`.
+4. Select your real microphone in `InputDevice`.
+5. Select `CABLE Input` in `OutputDevice`.
+6. Press `Start`.
+7. In Google Meet, Discord, Chrome, or another app, select `CABLE Output` as the microphone.
+8. Optional: scan a VST3 folder, add plugins to the chain, and open their editors.
+
+For the cleanest routing, set your microphone and VB-CABLE endpoints to the same sample rate in Windows sound settings, preferably `48000 Hz`.
+
+## Development
+
+Open `SnjVoiceChanger.sln` in Visual Studio 2022 or newer.
+
+Main projects:
+
+- `SnjVoiceChanger` - C# WinForms application.
+- `SnjVstHostNative` - native C++ VST3 host layer.
+
+Developer handoff notes and task specs live in [`docs`](docs).
+
+## Notes
+
+Snj Voice Changer does not install its own virtual microphone driver. It currently relies on an existing signed virtual cable such as VB-CABLE. Native VST2 support is planned as a future stage; the current chain is VST3-focused.
