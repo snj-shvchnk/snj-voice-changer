@@ -22,6 +22,7 @@ namespace SnjVoiceChanger
         private static readonly Color DarkAccentOrange = Color.FromArgb(245, 176, 84);
         private static readonly Color DarkDanger = Color.FromArgb(255, 107, 107);
         private const int DarkCornerRadius = 5;
+        private static readonly Size FixedMainClientSize = new(834, 508);
 
         private readonly AudioInputDeviceScanner _audioInputDeviceScanner = new();
         private readonly AudioOutputDeviceScanner _audioOutputDeviceScanner = new();
@@ -40,6 +41,7 @@ namespace SnjVoiceChanger
         public MainForm()
         {
             InitializeComponent();
+            ApplyFixedMainLayout();
             ApplyDarkTheme();
             var applicationIcon = LoadApplicationIcon();
             if (applicationIcon is not null)
@@ -66,6 +68,12 @@ namespace SnjVoiceChanger
         {
             base.OnHandleCreated(e);
             EnableDarkTitleBar();
+        }
+
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+            ApplyFixedMainLayout();
         }
 
         private static Icon? LoadApplicationIcon()
@@ -100,6 +108,67 @@ namespace SnjVoiceChanger
             catch
             {
             }
+        }
+
+        private void ApplyFixedMainLayout()
+        {
+            SuspendLayout();
+            leftPanel.SuspendLayout();
+            mainPanel.SuspendLayout();
+            foundPluginsGroupBox.SuspendLayout();
+            pluginChainGroupBox.SuspendLayout();
+
+            try
+            {
+                AutoScaleMode = AutoScaleMode.None;
+                FormBorderStyle = FormBorderStyle.FixedSingle;
+                MaximizeBox = false;
+
+                MinimumSize = Size.Empty;
+                MaximumSize = Size.Empty;
+                ClientSize = FixedMainClientSize;
+
+                leftPanel.Dock = DockStyle.None;
+                leftPanel.Anchor = AnchorStyles.None;
+                leftPanel.Bounds = new Rectangle(0, 0, 320, 508);
+
+                mainPanel.Dock = DockStyle.None;
+                mainPanel.Anchor = AnchorStyles.None;
+                mainPanel.Bounds = new Rectangle(320, 0, 514, 508);
+
+                SetFixedBounds(pluginFolderLabel, 20, 28, 100, 15);
+                SetFixedBounds(pluginFolderTextBox, 20, 48, 300, 23);
+                SetFixedBounds(browsePluginFolderButton, 325, 46, 82, 28);
+                SetFixedBounds(scanPluginsButton, 412, 46, 82, 28);
+                SetFixedBounds(foundPluginsGroupBox, 20, 78, 482, 134);
+                SetFixedBounds(foundPluginsListBox, 14, 23, 454, 94);
+                SetFixedBounds(pluginStatusLabel, 20, 221, 353, 19);
+                SetFixedBounds(addPluginButton, 378, 219, 116, 23);
+                SetFixedBounds(pluginChainGroupBox, 20, 250, 482, 188);
+                SetFixedBounds(pluginChainListBox, 14, 23, 384, 130);
+                SetFixedBounds(movePluginUpButton, 404, 23, 63, 23);
+                SetFixedBounds(movePluginDownButton, 404, 51, 63, 23);
+                SetFixedBounds(removePluginButton, 404, 79, 63, 23);
+                SetFixedBounds(openPluginEditorButton, 404, 106, 63, 23);
+                SetFixedBounds(copyrightLabel, 152, 473, 342, 25);
+
+                MinimumSize = Size;
+                MaximumSize = Size;
+            }
+            finally
+            {
+                pluginChainGroupBox.ResumeLayout(false);
+                foundPluginsGroupBox.ResumeLayout(false);
+                mainPanel.ResumeLayout(false);
+                leftPanel.ResumeLayout(false);
+                ResumeLayout(false);
+            }
+        }
+
+        private static void SetFixedBounds(Control control, int x, int y, int width, int height)
+        {
+            control.Anchor = AnchorStyles.None;
+            control.Bounds = new Rectangle(x, y, width, height);
         }
 
         private void ApplyDarkTheme()
