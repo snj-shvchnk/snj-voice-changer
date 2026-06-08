@@ -56,7 +56,7 @@ namespace SnjVoiceChanger
             inputDeviceLabel = new Label();
             mainPanel = new Panel();
             pluginChainGroupBox = new GroupBox();
-            pluginChainListBox = new ListBox();
+            pluginChainListBox = new CheckedListBox();
             movePluginDownButton = new Button();
             movePluginUpButton = new Button();
             openPluginEditorButton = new Button();
@@ -390,12 +390,15 @@ namespace SnjVoiceChanger
             // pluginChainListBox
             // 
             pluginChainListBox.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            pluginChainListBox.CheckOnClick = false;
             pluginChainListBox.FormattingEnabled = true;
             pluginChainListBox.ItemHeight = 20;
             pluginChainListBox.Location = new Point(16, 31);
             pluginChainListBox.Name = "pluginChainListBox";
             pluginChainListBox.Size = new Size(770, 184);
             pluginChainListBox.TabIndex = 0;
+            pluginChainListBox.ItemCheck += pluginChainListBox_ItemCheck;
+            pluginChainListBox.MouseDown += pluginChainListBox_MouseDown;
             pluginChainListBox.MouseDoubleClick += pluginChainListBox_MouseDoubleClick;
             pluginChainListBox.SelectedIndexChanged += pluginChainListBox_SelectedIndexChanged;
             //
@@ -595,7 +598,7 @@ namespace SnjVoiceChanger
         private ListBox foundPluginsListBox;
         private Button addPluginButton;
         private GroupBox pluginChainGroupBox;
-        private ListBox pluginChainListBox;
+        private CheckedListBox pluginChainListBox;
         private Button movePluginDownButton;
         private Button movePluginUpButton;
         private Button removePluginButton;

@@ -18,6 +18,8 @@ public sealed class VstPluginChainItem : IDisposable
 
     public NativeVstHost Host { get; }
 
+    public bool IsEnabled { get; set; } = true;
+
     public void SetupProcessing(double sampleRate, int maxBlockSize, int inputChannels, int outputChannels)
     {
         lock (_hostLock)

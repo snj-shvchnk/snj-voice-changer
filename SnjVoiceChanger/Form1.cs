@@ -13,6 +13,8 @@ namespace SnjVoiceChanger
         private string _nativeVstStatus = "Native VST host unchecked";
         private string _lastAudioProcessingStatus = string.Empty;
         private bool _isRefreshingDevices;
+        private bool _isUpdatingPluginChainChecks;
+        private bool _isPluginChainCheckboxClick;
 
         public MainForm()
         {
@@ -124,7 +126,17 @@ namespace SnjVoiceChanger
                     stoppedForRestart = true;
                 }
 
-                pluginChainListBox.Items.Add(new VstPluginChainItem(plugin.Name, plugin.Path, host));
+                var chainItem = new VstPluginChainItem(plugin.Name, plugin.Path, host);
+                _isUpdatingPluginChainChecks = true;
+                try
+                {
+                    pluginChainListBox.Items.Add(chainItem, chainItem.IsEnabled);
+                }
+                finally
+                {
+                    _isUpdatingPluginChainChecks = false;
+                }
+
                 host = null;
 
                 if (wasRunning)
@@ -307,7 +319,43 @@ namespace SnjVoiceChanger
             UpdatePluginChainButtons();
         }
 
-        private void pluginChainListBox_MouseDoubleClick(object? sender, MouseEventArgs e)
+        private void pluginChainListBox_ItemCheck(object? sender, ItemCheckEventArgs e)
+        {
+            if (_isUpdatingPluginChainChecks)
+            {
+                return;
+            }
+
+            if (!_isPluginChainCheckboxClick)
+            {
+                e.NewValue = e.CurrentValue;
+                return;
+            }
+
+            if (e.Index < 0 || pluginChainListBox.Items[e.Index] is not VstPluginChainItem chainItem)
+            {
+                return;
+            }
+
+            chainItem.IsEnabled = e.NewValue == CheckState.Checked;
+
+            var wasRunning = _audioRoutingService.IsRunning;
+            if (wasRunning)
+            {
+                StopAudioRouteForInternalRestart();
+                TryRestartAudioRouteAfterChainChange(chainItem.IsEnabled
+                    ? $"Enabled: {chainItem.Name}"
+                    : $"Bypassed: {chainItem.Name}");
+            }
+            else
+            {
+                pluginStatusLabel.Text = chainItem.IsEnabled
+                    ? $"Enabled: {chainItem.Name}"
+                    : $"Bypassed: {chainItem.Name}";
+            }
+        }
+
+        private void pluginChainListBox_MouseDown(object? sender, MouseEventArgs e)
         {
             var clickedIndex = pluginChainListBox.IndexFromPoint(e.Location);
             if (clickedIndex < 0)
@@ -316,7 +364,62 @@ namespace SnjVoiceChanger
             }
 
             pluginChainListBox.SelectedIndex = clickedIndex;
+
+            if (e.Button != MouseButtons.Left || !IsPluginChainCheckBoxHit(e.Location))
+            {
+                return;
+            }
+
+            if (e.Clicks > 1)
+            {
+                return;
+            }
+
+            _isPluginChainCheckboxClick = true;
+            try
+            {
+                pluginChainListBox.SetItemChecked(clickedIndex, !pluginChainListBox.GetItemChecked(clickedIndex));
+            }
+            finally
+            {
+                _isPluginChainCheckboxClick = false;
+            }
+        }
+
+        private void pluginChainListBox_MouseDoubleClick(object? sender, MouseEventArgs e)
+        {
+            var clickedIndex = pluginChainListBox.IndexFromPoint(e.Location);
+            if (clickedIndex < 0)
+            {
+                return;
+            }
+
+            if (IsPluginChainCheckBoxHit(e.Location))
+            {
+                return;
+            }
+
+            pluginChainListBox.SelectedIndex = clickedIndex;
             openPluginEditorButton_Click(sender, EventArgs.Empty);
+        }
+
+        private bool IsPluginChainCheckBoxHit(Point location)
+        {
+            var clickedIndex = pluginChainListBox.IndexFromPoint(location);
+            if (clickedIndex < 0)
+            {
+                return false;
+            }
+
+            var itemBounds = pluginChainListBox.GetItemRectangle(clickedIndex);
+            var checkBoxWidth = SystemInformation.MenuCheckSize.Width + 8;
+            var checkBoxBounds = new Rectangle(
+                itemBounds.Left,
+                itemBounds.Top,
+                checkBoxWidth,
+                itemBounds.Height);
+
+            return checkBoxBounds.Contains(location);
         }
 
         private void foundPluginsListBox_SelectedIndexChanged(object? sender, EventArgs e)
@@ -684,14 +787,24 @@ namespace SnjVoiceChanger
             }
 
             var wasRunning = _audioRoutingService.IsRunning;
+            var wasChecked = pluginChainListBox.GetItemChecked(selectedIndex);
             if (wasRunning)
             {
                 StopAudioRouteForInternalRestart();
             }
 
-            pluginChainListBox.Items.RemoveAt(selectedIndex);
-            pluginChainListBox.Items.Insert(targetIndex, chainItem);
-            pluginChainListBox.SelectedIndex = targetIndex;
+            _isUpdatingPluginChainChecks = true;
+            try
+            {
+                pluginChainListBox.Items.RemoveAt(selectedIndex);
+                pluginChainListBox.Items.Insert(targetIndex, chainItem);
+                pluginChainListBox.SetItemChecked(targetIndex, wasChecked);
+                pluginChainListBox.SelectedIndex = targetIndex;
+            }
+            finally
+            {
+                _isUpdatingPluginChainChecks = false;
+            }
 
             if (wasRunning)
             {
@@ -713,7 +826,7 @@ namespace SnjVoiceChanger
 
             foreach (var item in pluginChainListBox.Items)
             {
-                if (item is VstPluginChainItem chainItem)
+                if (item is VstPluginChainItem { IsEnabled: true } chainItem)
                 {
                     pluginChain.Add(chainItem);
                 }
