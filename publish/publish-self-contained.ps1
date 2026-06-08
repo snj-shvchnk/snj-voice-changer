@@ -7,6 +7,7 @@ try {
     $repoRoot = Split-Path -Parent $scriptDir
     $projectPath = Join-Path $repoRoot "SnjVoiceChanger\SnjVoiceChanger.csproj"
     $publishDir = Join-Path $scriptDir "app"
+    $nativeHostPath = Join-Path $repoRoot "SnjVoiceChanger\bin\Release\net9.0-windows\SnjVstHostNative.dll"
 
     Write-Host "Publishing Snj Voice Changer v1.1 self-contained..." -ForegroundColor Cyan
     Write-Host "Project: $projectPath"
@@ -23,6 +24,13 @@ try {
         --self-contained true `
         -p:PublishSingleFile=false `
         -o $publishDir
+
+    if (-not (Test-Path -LiteralPath $nativeHostPath)) {
+        throw "Native VST host was not found: $nativeHostPath. Build the solution in Visual Studio Release x64 first."
+    }
+
+    Copy-Item -LiteralPath $nativeHostPath -Destination $publishDir -Force
+    Write-Host "Copied native VST host: SnjVstHostNative.dll"
 
     Write-Host ""
     Write-Host "Publish completed successfully." -ForegroundColor Green
