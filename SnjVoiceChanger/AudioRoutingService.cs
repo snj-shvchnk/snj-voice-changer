@@ -5,6 +5,8 @@ using NAudio.Wave;
 
 public sealed class AudioRoutingService : IDisposable
 {
+    private const double InitialPreloadSeconds = 0.10;
+
     private readonly object _levelLock = new();
     private readonly object _pluginChainLock = new();
     private readonly object _processingLock = new();
@@ -24,6 +26,8 @@ public sealed class AudioRoutingService : IDisposable
     private float _resampleLastSample;
     private bool _resamplerHasLastSample;
     private bool _outputStarted;
+    private int _requestedOutputLatencyMs;
+    private double _lastCaptureBlockMs;
 
     public bool IsRunning => _capture is not null && _output is not null;
 
@@ -63,6 +67,8 @@ public sealed class AudioRoutingService : IDisposable
 
         _capture = new WasapiCapture(_inputDevice);
         var routeLatency = CalculateRouteLatency(_capture.WaveFormat, pluginBlockSize);
+        _requestedOutputLatencyMs = routeLatency.OutputLatencyMs;
+        _lastCaptureBlockMs = 0;
         var outputFormat = _outputDevice.AudioClient.MixFormat;
         var routeFormat = CreateRouteWaveFormat(outputFormat);
         _routeBuffer = new AudioRouteBuffer(routeFormat, TimeSpan.FromMilliseconds(1000));
@@ -75,6 +81,20 @@ public sealed class AudioRoutingService : IDisposable
         _capture.DataAvailable += Capture_DataAvailable;
 
         _capture.StartRecording();
+    }
+
+    public AudioRouteDiagnostics GetDiagnostics()
+    {
+        lock (_processingLock)
+        {
+            return new AudioRouteDiagnostics(
+                _routeBuffer?.BufferedMilliseconds ?? 0,
+                _routeBuffer?.CapacityMilliseconds ?? 0,
+                _requestedOutputLatencyMs,
+                _lastCaptureBlockMs,
+                _maxPluginBlockSize,
+                InitialPreloadSeconds * 1000);
+        }
     }
 
     public float GetOutputPeakLevel()
@@ -117,6 +137,8 @@ public sealed class AudioRoutingService : IDisposable
             _outputDevice = null;
             _deviceEnumerator = null;
             _outputStarted = false;
+            _requestedOutputLatencyMs = 0;
+            _lastCaptureBlockMs = 0;
             ResetResamplerState();
             ClearPluginProcessing("VST bypassed");
             SetInputPeakLevel(0);
@@ -139,6 +161,8 @@ public sealed class AudioRoutingService : IDisposable
             SetOutputPeakLevel(0);
             return;
         }
+
+        _lastCaptureBlockMs = CalculateCaptureBlockMilliseconds(e.BytesRecorded, _capture.WaveFormat);
 
         var outputSamples = ProcessCaptureBlockToRouteSamples(
             e.Buffer,
@@ -503,8 +527,18 @@ public sealed class AudioRoutingService : IDisposable
         var initialBufferedSamples = (int)Math.Ceiling(
             routeBuffer.WaveFormat.SampleRate *
             routeBuffer.WaveFormat.Channels *
-            0.12);
+            InitialPreloadSeconds);
         return routeBuffer.BufferedSamples >= Math.Max(routeBuffer.WaveFormat.Channels, initialBufferedSamples);
+    }
+
+    private static double CalculateCaptureBlockMilliseconds(int byteCount, WaveFormat waveFormat)
+    {
+        if (waveFormat.SampleRate <= 0)
+        {
+            return 0;
+        }
+
+        return AudioSampleConverter.GetFrameCount(byteCount, waveFormat) * 1000.0 / waveFormat.SampleRate;
     }
 
     private static int NormalizePluginBlockSize(int pluginBlockSize)

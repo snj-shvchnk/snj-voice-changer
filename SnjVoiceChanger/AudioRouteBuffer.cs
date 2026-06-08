@@ -34,6 +34,19 @@ public sealed class AudioRouteBuffer : IWaveProvider
         }
     }
 
+    public double BufferedMilliseconds
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return SamplesToMilliseconds(_bufferedSamples);
+            }
+        }
+    }
+
+    public double CapacityMilliseconds => SamplesToMilliseconds(_buffer.Length);
+
     public void AddSamples(ReadOnlySpan<float> samples)
     {
         lock (_lock)
@@ -92,5 +105,13 @@ public sealed class AudioRouteBuffer : IWaveProvider
         }
 
         return count;
+    }
+
+    private double SamplesToMilliseconds(int sampleCount)
+    {
+        var samplesPerSecond = WaveFormat.SampleRate * WaveFormat.Channels;
+        return samplesPerSecond <= 0
+            ? 0
+            : sampleCount * 1000.0 / samplesPerSecond;
     }
 }

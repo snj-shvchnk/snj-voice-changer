@@ -19,6 +19,12 @@ namespace SnjVoiceChanger
         public MainForm()
         {
             InitializeComponent();
+            var applicationIcon = LoadApplicationIcon();
+            if (applicationIcon is not null)
+            {
+                Icon = applicationIcon;
+            }
+
             inputDeviceComboBox.SelectedIndexChanged += InputDeviceComboBox_SelectedIndexChanged;
             outputDeviceComboBox.SelectedIndexChanged += OutputDeviceComboBox_SelectedIndexChanged;
             InitializeBufferSizeComboBox();
@@ -29,6 +35,24 @@ namespace SnjVoiceChanger
             UpdateNativeVstStatus();
             RefreshPluginList();
             RefreshAudioDevices();
+        }
+
+        private static Icon? LoadApplicationIcon()
+        {
+            try
+            {
+                var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico");
+                if (File.Exists(iconPath))
+                {
+                    return new Icon(iconPath);
+                }
+
+                return Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private void RefreshButton_Click(object? sender, EventArgs e)
@@ -66,6 +90,7 @@ namespace SnjVoiceChanger
                 : _inputLevelMonitor?.GetPeakLevel() ?? 0;
             outputLevelMeter.Level = _audioRoutingService.GetOutputPeakLevel();
             UpdateRunningRouteStatus();
+            UpdateLatencyStatus();
         }
 
         private void StartButton_Click(object? sender, EventArgs e)
@@ -603,6 +628,7 @@ namespace SnjVoiceChanger
             _lastAudioProcessingStatus = string.Empty;
             routingStatusValueLabel.Text = status;
             routingStatusValueLabel.ForeColor = Color.FromArgb(98, 103, 112);
+            UpdateLatencyStatus();
             UpdateOutputSelectionStatus();
             StartInputLevelMonitor(inputDeviceComboBox.SelectedItem as AudioInputDevice);
         }
@@ -695,6 +721,13 @@ namespace SnjVoiceChanger
                 ? Color.FromArgb(34, 139, 34)
                 : Color.FromArgb(184, 117, 28);
             pluginStatusLabel.Text = processingStatus;
+        }
+
+        private void UpdateLatencyStatus()
+        {
+            var diagnostics = _audioRoutingService.GetDiagnostics();
+            latencyStatusValueLabel.Text =
+                $"q/o/c/p {diagnostics.BufferedMs:0}/{diagnostics.RequestedOutputLatencyMs}/{diagnostics.LastCaptureBlockMs:0}/{diagnostics.InitialPreloadMs:0}ms";
         }
 
         private void RefreshPluginList()
@@ -885,6 +918,21 @@ namespace SnjVoiceChanger
             }
 
             pluginChainListBox.Items.Clear();
+        }
+
+        private void copyrightLabel_Click(object sender, EventArgs e)
+        {
+            MessageBox.Show(
+                this,
+                "Вітаю!\r\n\r\n" +
+                "Дякую, що користуєтеся Snj Voice Changer.\r\n\r\n" +
+                "Semen Shevchenko\r\n" +
+                "Email: semen7shevchenko@gmail.com\r\n" +
+                "Telegram: @Semen7Shevchenko\r\n\r\n" +
+                "Гарного вам звуку!",
+                "SNJ7SNJ Development",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
         }
     }
 }
