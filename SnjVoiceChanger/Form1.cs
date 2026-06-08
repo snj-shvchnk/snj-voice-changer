@@ -67,35 +67,7 @@ namespace SnjVoiceChanger
 
         private void StartButton_Click(object? sender, EventArgs e)
         {
-            var inputDevice = inputDeviceComboBox.SelectedItem as AudioInputDevice;
-            var outputDevice = outputDeviceComboBox.SelectedItem as AudioOutputDevice;
-
-            if (inputDevice is null || outputDevice is null)
-            {
-                routingStatusValueLabel.Text = "Select input and output";
-                routingStatusValueLabel.ForeColor = Color.FromArgb(178, 34, 34);
-                return;
-            }
-
-            try
-            {
-                StopInputLevelMonitor();
-                _audioRoutingService.Start(
-                    inputDevice,
-                    outputDevice,
-                    GetPluginChainSnapshot(),
-                    GetSelectedBufferSize());
-                startButton.Enabled = false;
-                stopButton.Enabled = true;
-                UpdateRunningRouteStatus(force: true);
-                outputLevelStatusLabel.Text = outputDevice.Name;
-            }
-            catch (Exception ex)
-            {
-                StopAudioRoute("Error");
-                routingStatusValueLabel.Text = ex.Message;
-                routingStatusValueLabel.ForeColor = Color.FromArgb(178, 34, 34);
-            }
+            TryStartAudioRouteFromCurrentSelection();
         }
 
         private void StopButton_Click(object? sender, EventArgs e)
@@ -137,27 +109,39 @@ namespace SnjVoiceChanger
             }
 
             NativeVstHost? host = null;
+            var wasRunning = _audioRoutingService.IsRunning;
+            var stoppedForRestart = false;
 
             try
             {
                 host = new NativeVstHost();
                 host.LoadPlugin(plugin.Path);
-                pluginChainListBox.Items.Add(new VstPluginChainItem(plugin.Name, plugin.Path, host));
-                host = null;
-                if (_audioRoutingService.IsRunning)
+
+                if (wasRunning)
                 {
-                    StopAudioRoute("Stopped: plugin added");
+                    StopAudioRouteForInternalRestart();
+                    stoppedForRestart = true;
                 }
 
-                pluginStatusLabel.Text = $"Added: {plugin.Name}";
+                pluginChainListBox.Items.Add(new VstPluginChainItem(plugin.Name, plugin.Path, host));
+                host = null;
+
+                if (wasRunning)
+                {
+                    TryRestartAudioRouteAfterChainChange($"Added: {plugin.Name}");
+                }
+                else
+                {
+                    pluginStatusLabel.Text = $"Added: {plugin.Name}";
+                }
             }
             catch (NativeVstHostException ex)
             {
-                pluginStatusLabel.Text = $"Add failed: {ex.Message}";
+                RecoverFromFailedChainChange($"Add failed: {ex.Message}", stoppedForRestart);
             }
             catch (Exception ex)
             {
-                pluginStatusLabel.Text = $"Add failed: {ex.Message}";
+                RecoverFromFailedChainChange($"Add failed: {ex.Message}", stoppedForRestart);
             }
             finally
             {
@@ -178,10 +162,11 @@ namespace SnjVoiceChanger
 
             var chainItem = pluginChainListBox.SelectedItem as VstPluginChainItem;
             var pluginName = chainItem?.Name ?? pluginChainListBox.SelectedItem?.ToString() ?? "plugin";
+            var wasRunning = _audioRoutingService.IsRunning;
 
-            if (_audioRoutingService.IsRunning)
+            if (wasRunning)
             {
-                StopAudioRoute("Stopped: plugin removed");
+                StopAudioRouteForInternalRestart();
             }
 
             chainItem?.Dispose();
@@ -192,7 +177,15 @@ namespace SnjVoiceChanger
                 pluginChainListBox.SelectedIndex = Math.Min(selectedIndex, pluginChainListBox.Items.Count - 1);
             }
 
-            pluginStatusLabel.Text = $"Removed: {pluginName}";
+            if (wasRunning)
+            {
+                TryRestartAudioRouteAfterChainChange($"Removed: {pluginName}");
+            }
+            else
+            {
+                pluginStatusLabel.Text = $"Removed: {pluginName}";
+            }
+
             UpdatePluginChainButtons();
         }
 
@@ -449,6 +442,75 @@ namespace SnjVoiceChanger
             routingStatusValueLabel.ForeColor = Color.FromArgb(98, 103, 112);
             UpdateOutputSelectionStatus();
             StartInputLevelMonitor(inputDeviceComboBox.SelectedItem as AudioInputDevice);
+        }
+
+        private void StopAudioRouteForInternalRestart()
+        {
+            _audioRoutingService.Stop();
+            outputLevelMeter.Level = 0;
+            _lastAudioProcessingStatus = string.Empty;
+        }
+
+        private bool TryRestartAudioRouteAfterChainChange(string actionStatus)
+        {
+            var restarted = TryStartAudioRouteFromCurrentSelection();
+            pluginStatusLabel.Text = restarted
+                ? actionStatus
+                : $"Restart failed after chain change: {pluginStatusLabel.Text}";
+
+            return restarted;
+        }
+
+        private void RecoverFromFailedChainChange(string failureStatus, bool routeWasStoppedForRestart)
+        {
+            if (!routeWasStoppedForRestart)
+            {
+                pluginStatusLabel.Text = failureStatus;
+                return;
+            }
+
+            var restarted = TryStartAudioRouteFromCurrentSelection();
+            pluginStatusLabel.Text = restarted
+                ? failureStatus
+                : $"{failureStatus}. Route restart failed: {pluginStatusLabel.Text}";
+        }
+
+        private bool TryStartAudioRouteFromCurrentSelection()
+        {
+            var inputDevice = inputDeviceComboBox.SelectedItem as AudioInputDevice;
+            var outputDevice = outputDeviceComboBox.SelectedItem as AudioOutputDevice;
+
+            if (inputDevice is null || outputDevice is null)
+            {
+                routingStatusValueLabel.Text = "Select input and output";
+                routingStatusValueLabel.ForeColor = Color.FromArgb(178, 34, 34);
+                startButton.Enabled = true;
+                stopButton.Enabled = false;
+                return false;
+            }
+
+            try
+            {
+                StopInputLevelMonitor();
+                _audioRoutingService.Start(
+                    inputDevice,
+                    outputDevice,
+                    GetPluginChainSnapshot(),
+                    GetSelectedBufferSize());
+                startButton.Enabled = false;
+                stopButton.Enabled = true;
+                UpdateRunningRouteStatus(force: true);
+                outputLevelStatusLabel.Text = outputDevice.Name;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StopAudioRoute("Error");
+                routingStatusValueLabel.Text = ex.Message;
+                routingStatusValueLabel.ForeColor = Color.FromArgb(178, 34, 34);
+                pluginStatusLabel.Text = ex.Message;
+                return false;
+            }
         }
 
         private void UpdateRunningRouteStatus(bool force = false)
