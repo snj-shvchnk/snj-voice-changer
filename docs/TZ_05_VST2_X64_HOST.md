@@ -193,6 +193,23 @@ Vst2 -> NativeVst2Host
 - Show candidates in UI with `(VST2 x64)`.
 - Do not load/process yet.
 
+Implementation notes for this repo:
+
+- `common\VST` is expected to contain format subfolders:
+  - `common\VST\vst3`
+  - `common\VST\vst2`
+- The folder structure must be preserved by normal build/publish/installer flows.
+- `SnjVoiceChanger.csproj` already copies `..\common\**\*`, so this should keep
+  the subfolder layout in build output and installer output.
+- `VstPluginScanner` must scan recursively from the selected folder.
+- VST3 candidates come from `.vst3` files/bundles.
+- VST2 candidates come from `.dll` files only when both conditions are true:
+  - PE machine is AMD64/x64.
+  - export table contains `VSTPluginMain` or legacy `main`.
+- First implementation should show VST2 candidates but reject Add with a clear
+  "VST2 host is not implemented yet" message. This avoids accidentally passing
+  a VST2 DLL into the existing VST3 host.
+
 ### Milestone 2: VST2 Load Smoke
 
 - Load DLL.
@@ -200,6 +217,22 @@ Vst2 -> NativeVst2Host
 - Validate `AEffect`.
 - Read name/vendor where possible.
 - Close safely.
+
+Implementation notes for this repo:
+
+- Add a separate Visual C++ dynamic library project:
+  - `SnjVst2HostNative\SnjVst2HostNative.vcxproj`
+  - output beside `SnjVoiceChanger.exe`
+- Export a C ABI with `SnjVst2Host_*` names. Do not reuse the VST3
+  `SnjVstHost_*` names.
+- The first C# integration should be smoke-only:
+  - selecting a VST2 candidate and pressing `Add plugin` calls
+    `NativeVst2Host.LoadPlugin(path)`;
+  - if load succeeds, show `VST2 load OK: <name>`;
+  - do not add the plugin to the audio chain yet.
+- `publish\publish-self-contained.ps1` must copy `SnjVst2HostNative.dll` into
+  `publish\app`, just like `SnjVstHostNative.dll`.
+- Stop here for manual user build/testing before implementing editor hosting.
 
 ### Milestone 3: VST2 Editor Window
 
@@ -237,3 +270,26 @@ Vst2 -> NativeVst2Host
 - Audio can pass through ReaPitch in the same chain with VST3 plugins.
 - Removing/reordering/enabling/bypassing mixed VST2/VST3 plugins does not crash.
 - No 32-bit bridge is required for ReaPitch x64.
+
+## Isolated Subagent Prompt For Next Stage
+
+Use this prompt in a new clean thread if delegating without parent-chat context:
+
+```text
+You are working on Snj Voice Changer at C:\Work\codex\snj-voice-changer.
+Do not run builds or tests; the user builds manually.
+Do not touch any driver branch/files.
+Do not spawn subagents.
+
+Read docs\TZ_05_VST2_X64_HOST.md first.
+
+Current goal: implement the next VST2 x64 milestone only.
+Preserve the working VST3 route.
+Prefer small scoped changes and stop when user build/testing is needed.
+
+Milestone boundary:
+- If Milestone 1 discovery is already implemented, do not rewrite it broadly.
+- For Milestone 2, add a separate SnjVst2HostNative DLL smoke host.
+- Do not modify SnjVstHostNative except tiny output-copy/publish rules if needed.
+- Do not implement audio processing until VST2 load/open smoke is manually verified.
+```

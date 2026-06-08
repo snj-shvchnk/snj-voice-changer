@@ -208,7 +208,7 @@ namespace SnjVoiceChanger
             routingStatusLabel.AutoSize = true;
             routingStatusLabel.Location = new Point(14, 74);
             routingStatusLabel.Name = "routingStatusLabel";
-            routingStatusLabel.Size = new Size(38, 15);
+            routingStatusLabel.Size = new Size(48, 20);
             routingStatusLabel.TabIndex = 6;
             routingStatusLabel.Text = "Route";
             // 
@@ -227,7 +227,7 @@ namespace SnjVoiceChanger
             cableStateLabel.AutoSize = true;
             cableStateLabel.Location = new Point(14, 56);
             cableStateLabel.Name = "cableStateLabel";
-            cableStateLabel.Size = new Size(39, 15);
+            cableStateLabel.Size = new Size(49, 20);
             cableStateLabel.TabIndex = 4;
             cableStateLabel.Text = "Status";
             // 
@@ -245,7 +245,7 @@ namespace SnjVoiceChanger
             cableInputLabel.AutoSize = true;
             cableInputLabel.Location = new Point(14, 38);
             cableInputLabel.Name = "cableInputLabel";
-            cableInputLabel.Size = new Size(27, 15);
+            cableInputLabel.Size = new Size(33, 20);
             cableInputLabel.TabIndex = 2;
             cableInputLabel.Text = "Mic";
             // 
@@ -263,7 +263,7 @@ namespace SnjVoiceChanger
             cableOutputLabel.AutoSize = true;
             cableOutputLabel.Location = new Point(14, 20);
             cableOutputLabel.Name = "cableOutputLabel";
-            cableOutputLabel.Size = new Size(45, 15);
+            cableOutputLabel.Size = new Size(55, 20);
             cableOutputLabel.TabIndex = 0;
             cableOutputLabel.Text = "Output";
             // 
@@ -309,7 +309,7 @@ namespace SnjVoiceChanger
             bufferSizeComboBox.Location = new Point(87, 111);
             bufferSizeComboBox.Margin = new Padding(3, 2, 3, 2);
             bufferSizeComboBox.Name = "bufferSizeComboBox";
-            bufferSizeComboBox.Size = new Size(80, 24);
+            bufferSizeComboBox.Size = new Size(80, 28);
             bufferSizeComboBox.TabIndex = 10;
             // 
             // bufferSizeLabel
@@ -318,7 +318,7 @@ namespace SnjVoiceChanger
             bufferSizeLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             bufferSizeLabel.Location = new Point(14, 114);
             bufferSizeLabel.Name = "bufferSizeLabel";
-            bufferSizeLabel.Size = new Size(44, 15);
+            bufferSizeLabel.Size = new Size(54, 20);
             bufferSizeLabel.TabIndex = 11;
             bufferSizeLabel.Text = "Buffer";
             // 
@@ -332,7 +332,7 @@ namespace SnjVoiceChanger
             outputDeviceComboBox.FormattingEnabled = true;
             outputDeviceComboBox.Location = new Point(14, 78);
             outputDeviceComboBox.Name = "outputDeviceComboBox";
-            outputDeviceComboBox.Size = new Size(293, 24);
+            outputDeviceComboBox.Size = new Size(293, 28);
             outputDeviceComboBox.TabIndex = 3;
             // 
             // outputDeviceLabel
@@ -341,7 +341,7 @@ namespace SnjVoiceChanger
             outputDeviceLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             outputDeviceLabel.Location = new Point(14, 59);
             outputDeviceLabel.Name = "outputDeviceLabel";
-            outputDeviceLabel.Size = new Size(86, 15);
+            outputDeviceLabel.Size = new Size(105, 20);
             outputDeviceLabel.TabIndex = 2;
             outputDeviceLabel.Text = "OutputDevice";
             // 
@@ -355,7 +355,7 @@ namespace SnjVoiceChanger
             inputDeviceComboBox.FormattingEnabled = true;
             inputDeviceComboBox.Location = new Point(14, 30);
             inputDeviceComboBox.Name = "inputDeviceComboBox";
-            inputDeviceComboBox.Size = new Size(293, 24);
+            inputDeviceComboBox.Size = new Size(293, 28);
             inputDeviceComboBox.TabIndex = 1;
             // 
             // inputDeviceLabel
@@ -364,7 +364,7 @@ namespace SnjVoiceChanger
             inputDeviceLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             inputDeviceLabel.Location = new Point(14, 11);
             inputDeviceLabel.Name = "inputDeviceLabel";
-            inputDeviceLabel.Size = new Size(76, 15);
+            inputDeviceLabel.Size = new Size(93, 20);
             inputDeviceLabel.TabIndex = 0;
             inputDeviceLabel.Text = "InputDevice";
             // 
@@ -385,7 +385,7 @@ namespace SnjVoiceChanger
             mainPanel.Location = new Point(320, 0);
             mainPanel.Name = "mainPanel";
             mainPanel.Padding = new Padding(20);
-            mainPanel.Size = new Size(514, 508);
+            mainPanel.Size = new Size(512, 500);
             mainPanel.TabIndex = 1;
             // 
             // copyrightLabel
@@ -393,7 +393,7 @@ namespace SnjVoiceChanger
             copyrightLabel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             copyrightLabel.Font = new Font("Segoe UI", 11F);
             copyrightLabel.ForeColor = Color.FromArgb(120, 126, 136);
-            copyrightLabel.Location = new Point(152, 473);
+            copyrightLabel.Location = new Point(150, 465);
             copyrightLabel.Name = "copyrightLabel";
             copyrightLabel.Size = new Size(342, 25);
             copyrightLabel.TabIndex = 8;
@@ -413,7 +413,7 @@ namespace SnjVoiceChanger
             pluginChainGroupBox.Margin = new Padding(3, 2, 3, 2);
             pluginChainGroupBox.Name = "pluginChainGroupBox";
             pluginChainGroupBox.Padding = new Padding(3, 2, 3, 2);
-            pluginChainGroupBox.Size = new Size(482, 188);
+            pluginChainGroupBox.Size = new Size(480, 188);
             pluginChainGroupBox.TabIndex = 7;
             pluginChainGroupBox.TabStop = false;
             pluginChainGroupBox.Text = "Plugin chain";
@@ -425,7 +425,7 @@ namespace SnjVoiceChanger
             pluginChainListBox.Location = new Point(14, 23);
             pluginChainListBox.Margin = new Padding(3, 2, 3, 2);
             pluginChainListBox.Name = "pluginChainListBox";
-            pluginChainListBox.Size = new Size(384, 130);
+            pluginChainListBox.Size = new Size(382, 114);
             pluginChainListBox.TabIndex = 0;
             pluginChainListBox.ItemCheck += pluginChainListBox_ItemCheck;
             pluginChainListBox.SelectedIndexChanged += pluginChainListBox_SelectedIndexChanged;
@@ -436,7 +436,7 @@ namespace SnjVoiceChanger
             // 
             movePluginDownButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             movePluginDownButton.Enabled = false;
-            movePluginDownButton.Location = new Point(404, 51);
+            movePluginDownButton.Location = new Point(402, 51);
             movePluginDownButton.Margin = new Padding(3, 2, 3, 2);
             movePluginDownButton.Name = "movePluginDownButton";
             movePluginDownButton.Size = new Size(63, 23);
@@ -449,7 +449,7 @@ namespace SnjVoiceChanger
             // 
             movePluginUpButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             movePluginUpButton.Enabled = false;
-            movePluginUpButton.Location = new Point(404, 23);
+            movePluginUpButton.Location = new Point(402, 23);
             movePluginUpButton.Margin = new Padding(3, 2, 3, 2);
             movePluginUpButton.Name = "movePluginUpButton";
             movePluginUpButton.Size = new Size(63, 23);
@@ -462,7 +462,7 @@ namespace SnjVoiceChanger
             // 
             openPluginEditorButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             openPluginEditorButton.Enabled = false;
-            openPluginEditorButton.Location = new Point(404, 106);
+            openPluginEditorButton.Location = new Point(402, 106);
             openPluginEditorButton.Margin = new Padding(3, 2, 3, 2);
             openPluginEditorButton.Name = "openPluginEditorButton";
             openPluginEditorButton.Size = new Size(63, 23);
@@ -475,7 +475,7 @@ namespace SnjVoiceChanger
             // 
             removePluginButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             removePluginButton.Enabled = false;
-            removePluginButton.Location = new Point(404, 79);
+            removePluginButton.Location = new Point(402, 79);
             removePluginButton.Margin = new Padding(3, 2, 3, 2);
             removePluginButton.Name = "removePluginButton";
             removePluginButton.Size = new Size(63, 23);
@@ -488,7 +488,7 @@ namespace SnjVoiceChanger
             // 
             addPluginButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             addPluginButton.Enabled = false;
-            addPluginButton.Location = new Point(378, 219);
+            addPluginButton.Location = new Point(376, 219);
             addPluginButton.Margin = new Padding(3, 2, 3, 2);
             addPluginButton.Name = "addPluginButton";
             addPluginButton.Size = new Size(116, 23);
@@ -505,10 +505,10 @@ namespace SnjVoiceChanger
             foundPluginsGroupBox.Margin = new Padding(3, 2, 3, 2);
             foundPluginsGroupBox.Name = "foundPluginsGroupBox";
             foundPluginsGroupBox.Padding = new Padding(3, 2, 3, 2);
-            foundPluginsGroupBox.Size = new Size(482, 134);
+            foundPluginsGroupBox.Size = new Size(480, 134);
             foundPluginsGroupBox.TabIndex = 5;
             foundPluginsGroupBox.TabStop = false;
-            foundPluginsGroupBox.Text = "Found VST3 plugins";
+            foundPluginsGroupBox.Text = "Found VST plugins";
             // 
             // foundPluginsListBox
             // 
@@ -517,7 +517,7 @@ namespace SnjVoiceChanger
             foundPluginsListBox.Location = new Point(14, 23);
             foundPluginsListBox.Margin = new Padding(3, 2, 3, 2);
             foundPluginsListBox.Name = "foundPluginsListBox";
-            foundPluginsListBox.Size = new Size(454, 94);
+            foundPluginsListBox.Size = new Size(452, 84);
             foundPluginsListBox.TabIndex = 0;
             foundPluginsListBox.SelectedIndexChanged += foundPluginsListBox_SelectedIndexChanged;
             foundPluginsListBox.MouseDoubleClick += foundPluginsListBox_MouseDoubleClick;
@@ -529,14 +529,14 @@ namespace SnjVoiceChanger
             pluginStatusLabel.ForeColor = Color.FromArgb(98, 103, 112);
             pluginStatusLabel.Location = new Point(20, 221);
             pluginStatusLabel.Name = "pluginStatusLabel";
-            pluginStatusLabel.Size = new Size(353, 19);
+            pluginStatusLabel.Size = new Size(351, 19);
             pluginStatusLabel.TabIndex = 4;
-            pluginStatusLabel.Text = "No VST3 plugins found";
+            pluginStatusLabel.Text = "No VST plugins found";
             // 
             // scanPluginsButton
             // 
             scanPluginsButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            scanPluginsButton.Location = new Point(412, 46);
+            scanPluginsButton.Location = new Point(410, 46);
             scanPluginsButton.Margin = new Padding(3, 2, 3, 2);
             scanPluginsButton.Name = "scanPluginsButton";
             scanPluginsButton.Size = new Size(82, 28);
@@ -548,7 +548,7 @@ namespace SnjVoiceChanger
             // browsePluginFolderButton
             // 
             browsePluginFolderButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            browsePluginFolderButton.Location = new Point(325, 46);
+            browsePluginFolderButton.Location = new Point(323, 46);
             browsePluginFolderButton.Margin = new Padding(3, 2, 3, 2);
             browsePluginFolderButton.Name = "browsePluginFolderButton";
             browsePluginFolderButton.Size = new Size(82, 28);
@@ -563,7 +563,7 @@ namespace SnjVoiceChanger
             pluginFolderTextBox.Location = new Point(20, 48);
             pluginFolderTextBox.Margin = new Padding(3, 2, 3, 2);
             pluginFolderTextBox.Name = "pluginFolderTextBox";
-            pluginFolderTextBox.Size = new Size(300, 23);
+            pluginFolderTextBox.Size = new Size(298, 27);
             pluginFolderTextBox.TabIndex = 1;
             // 
             // pluginFolderLabel
@@ -573,15 +573,14 @@ namespace SnjVoiceChanger
             pluginFolderLabel.ForeColor = SystemColors.ControlText;
             pluginFolderLabel.Location = new Point(20, 28);
             pluginFolderLabel.Name = "pluginFolderLabel";
-            pluginFolderLabel.Size = new Size(78, 15);
+            pluginFolderLabel.Size = new Size(99, 20);
             pluginFolderLabel.TabIndex = 0;
             pluginFolderLabel.Text = "Plugin folder";
             // 
             // MainForm
             // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.None;
-            ClientSize = new Size(834, 508);
+            ClientSize = new Size(832, 500);
             Controls.Add(mainPanel);
             Controls.Add(leftPanel);
             FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -589,7 +588,7 @@ namespace SnjVoiceChanger
             MaximumSize = new Size(850, 547);
             MinimumSize = new Size(850, 547);
             Name = "MainForm";
-            Text = "Snj Voice Changer v1.0";
+            Text = "Snj Voice Changer v1.2";
             leftPanel.ResumeLayout(false);
             leftPanel.PerformLayout();
             outputLevelGroupBox.ResumeLayout(false);

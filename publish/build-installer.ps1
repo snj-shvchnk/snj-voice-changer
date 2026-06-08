@@ -80,7 +80,7 @@ try {
 
     Write-Host ""
     Write-Host "Installer completed successfully." -ForegroundColor Green
-    Write-Host "Output: $(Join-Path $scriptDir 'SnjVoiceChanger_v1.1.exe')"
+    Write-Host "Output: $(Join-Path $scriptDir 'SnjVoiceChanger_v1.2.exe')"
 }
 catch {
     $exitCode = 1

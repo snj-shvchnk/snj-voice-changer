@@ -1,3 +1,5 @@
+using System.Drawing;
+
 namespace SnjVoiceChanger;
 
 public sealed class VstPluginChainItem : IDisposable
@@ -5,10 +7,11 @@ public sealed class VstPluginChainItem : IDisposable
     private readonly object _hostLock = new();
     private bool _disposed;
 
-    public VstPluginChainItem(string name, string path, NativeVstHost host)
+    public VstPluginChainItem(string name, string path, VstPluginFormat format, IAudioPluginHost host)
     {
         Name = name;
         Path = path;
+        Format = format;
         Host = host;
     }
 
@@ -16,7 +19,9 @@ public sealed class VstPluginChainItem : IDisposable
 
     public string Path { get; }
 
-    public NativeVstHost Host { get; }
+    public VstPluginFormat Format { get; }
+
+    public IAudioPluginHost Host { get; }
 
     public bool IsEnabled { get; set; } = true;
 
@@ -47,6 +52,28 @@ public sealed class VstPluginChainItem : IDisposable
         }
     }
 
+    public Size? GetEditorSize()
+    {
+        lock (_hostLock)
+        {
+            EnsureNotDisposed();
+            return Host.GetEditorSize();
+        }
+    }
+
+    public void EditorIdle()
+    {
+        lock (_hostLock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            Host.EditorIdle();
+        }
+    }
+
     public void CloseEditor()
     {
         lock (_hostLock)
@@ -74,7 +101,9 @@ public sealed class VstPluginChainItem : IDisposable
         }
     }
 
-    public override string ToString() => Name;
+    public override string ToString() => Format == VstPluginFormat.Vst2
+        ? $"{Name} (VST2 x64)"
+        : Name;
 
     private void EnsureNotDisposed()
     {

@@ -481,7 +481,7 @@ namespace SnjVoiceChanger
         {
             using var dialog = new FolderBrowserDialog
             {
-                Description = "Select VST3 plugin folder",
+                Description = "Select VST plugin folder",
                 UseDescriptionForTitle = true,
                 SelectedPath = Directory.Exists(pluginFolderTextBox.Text)
                     ? pluginFolderTextBox.Text
@@ -510,14 +510,13 @@ namespace SnjVoiceChanger
                 return;
             }
 
-            NativeVstHost? host = null;
+            IAudioPluginHost? host = null;
             var wasRunning = _audioRoutingService.IsRunning;
             var stoppedForRestart = false;
 
             try
             {
-                host = new NativeVstHost();
-                host.LoadPlugin(plugin.Path);
+                host = CreatePluginHost(plugin);
 
                 if (wasRunning)
                 {
@@ -525,7 +524,7 @@ namespace SnjVoiceChanger
                     stoppedForRestart = true;
                 }
 
-                var chainItem = new VstPluginChainItem(plugin.Name, plugin.Path, host);
+                var chainItem = new VstPluginChainItem(plugin.Name, plugin.Path, plugin.Format, host);
                 _isUpdatingPluginChainChecks = true;
                 try
                 {
@@ -540,11 +539,11 @@ namespace SnjVoiceChanger
 
                 if (wasRunning)
                 {
-                    TryRestartAudioRouteAfterChainChange($"Added: {plugin.Name}");
+                    TryRestartAudioRouteAfterChainChange($"Added: {chainItem}");
                 }
                 else
                 {
-                    pluginStatusLabel.Text = $"Added: {plugin.Name}";
+                    pluginStatusLabel.Text = $"Added: {chainItem}";
                 }
             }
             catch (NativeVstHostException ex)
@@ -561,6 +560,26 @@ namespace SnjVoiceChanger
             }
 
             UpdatePluginChainButtons();
+        }
+
+        private static IAudioPluginHost CreatePluginHost(VstPluginCandidate plugin)
+        {
+            IAudioPluginHost host = plugin.Format switch
+            {
+                VstPluginFormat.Vst2 => new NativeVst2Host(),
+                _ => new NativeVstHost(),
+            };
+
+            try
+            {
+                host.LoadPlugin(plugin.Path);
+                return host;
+            }
+            catch
+            {
+                host.Dispose();
+                throw;
+            }
         }
 
         private void removePluginButton_Click(object? sender, EventArgs e)
@@ -655,6 +674,10 @@ namespace SnjVoiceChanger
             };
 
             var editorOpened = false;
+            var editorIdleTimer = new System.Windows.Forms.Timer
+            {
+                Interval = 33,
+            };
             _pluginEditorForms[plugin] = editorForm;
 
             editorForm.Shown += (_, _) =>
@@ -662,23 +685,46 @@ namespace SnjVoiceChanger
                 try
                 {
                     plugin.OpenEditor(editorForm.Handle);
+                    ApplyPreferredEditorSize(editorForm, plugin);
+                    if (plugin.Format == VstPluginFormat.Vst2)
+                    {
+                        editorIdleTimer.Start();
+                    }
+
                     editorOpened = true;
                     pluginStatusLabel.Text = $"Editor opened: {plugin.Name}";
                 }
                 catch (NativeVstHostException ex)
                 {
+                    editorIdleTimer.Stop();
                     ShowEditorError(editorForm, ex.Message, plugin.Path);
                     pluginStatusLabel.Text = ex.Message;
                 }
                 catch (Exception ex)
                 {
+                    editorIdleTimer.Stop();
                     ShowEditorError(editorForm, ex.Message, plugin.Path);
                     pluginStatusLabel.Text = ex.Message;
                 }
             };
 
+            editorIdleTimer.Tick += (_, _) =>
+            {
+                try
+                {
+                    plugin.EditorIdle();
+                }
+                catch (Exception ex)
+                {
+                    editorIdleTimer.Stop();
+                    pluginStatusLabel.Text = $"Editor idle failed: {ex.Message}";
+                }
+            };
+
             editorForm.FormClosed += (_, _) =>
             {
+                editorIdleTimer.Stop();
+                editorIdleTimer.Dispose();
                 _pluginEditorForms.Remove(plugin);
 
                 if (!editorOpened)
@@ -701,6 +747,22 @@ namespace SnjVoiceChanger
             };
 
             editorForm.Show(this);
+        }
+
+        private static void ApplyPreferredEditorSize(Form editorForm, VstPluginChainItem plugin)
+        {
+            var preferredSize = plugin.GetEditorSize();
+            if (preferredSize is not { Width: > 0, Height: > 0 } size)
+            {
+                return;
+            }
+
+            var workingArea = Screen.FromControl(editorForm).WorkingArea;
+            var maxClientWidth = Math.Max(320, workingArea.Width - 120);
+            var maxClientHeight = Math.Max(240, workingArea.Height - 120);
+            editorForm.ClientSize = new Size(
+                Math.Clamp(size.Width, 320, maxClientWidth),
+                Math.Clamp(size.Height, 220, maxClientHeight));
         }
 
         private static void ShowEditorError(Form editorForm, string message, string pluginPath)
@@ -1121,31 +1183,50 @@ namespace SnjVoiceChanger
             }
 
             foundPluginsListBox.EndUpdate();
-            pluginStatusLabel.Text = GetPluginStatusText(plugins.Count);
+            pluginStatusLabel.Text = GetPluginStatusText(plugins);
             UpdatePluginChainButtons();
         }
 
         private void UpdateNativeVstStatus()
         {
+            var statusParts = new List<string>();
+
             try
             {
-                _nativeVstStatus = $"Native VST API v{NativeVstHost.ApiVersion}";
+                statusParts.Add($"VST3 API v{NativeVstHost.ApiVersion}");
             }
             catch (NativeVstHostException ex)
             {
-                _nativeVstStatus = ex.Message;
+                statusParts.Add(ex.Message);
             }
             catch (Exception ex)
             {
-                _nativeVstStatus = $"Native VST host unavailable: {ex.Message}";
+                statusParts.Add($"Native VST3 host unavailable: {ex.Message}");
             }
+
+            try
+            {
+                statusParts.Add($"VST2 API v{NativeVst2Host.ApiVersion}");
+            }
+            catch (NativeVstHostException ex)
+            {
+                statusParts.Add(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                statusParts.Add($"Native VST2 host unavailable: {ex.Message}");
+            }
+
+            _nativeVstStatus = string.Join(" / ", statusParts);
         }
 
-        private string GetPluginStatusText(int pluginCount)
+        private string GetPluginStatusText(IReadOnlyCollection<VstPluginCandidate> plugins)
         {
-            var pluginScanStatus = pluginCount == 0
-                ? "No VST3 plugins found"
-                : $"Found {pluginCount} VST3 plugin(s)";
+            var vst3Count = plugins.Count(plugin => plugin.Format == VstPluginFormat.Vst3);
+            var vst2Count = plugins.Count(plugin => plugin.Format == VstPluginFormat.Vst2);
+            var pluginScanStatus = plugins.Count == 0
+                ? "No VST plugins found"
+                : $"Found {vst3Count} VST3 + {vst2Count} VST2 x64 plugin(s)";
 
             return $"{_nativeVstStatus}. {pluginScanStatus}";
         }

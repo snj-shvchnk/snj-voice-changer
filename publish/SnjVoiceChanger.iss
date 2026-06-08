@@ -1,5 +1,5 @@
 #define AppName "Snj Voice Changer"
-#define AppVersion "1.1"
+#define AppVersion "1.2"
 #define AppPublisher "SNJ7SNJ Development"
 #define AppExeName "SnjVoiceChanger.exe"
 #define PublishDir "app"
@@ -13,7 +13,7 @@ DefaultDirName={autopf}\SNJ7SNJ\SnjVoiceChanger
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputDir=.
-OutputBaseFilename=SnjVoiceChanger_v1.1
+OutputBaseFilename=SnjVoiceChanger_v1.2
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=admin

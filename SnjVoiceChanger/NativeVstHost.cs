@@ -1,8 +1,9 @@
+using System.Drawing;
 using System.Runtime.InteropServices;
 
 namespace SnjVoiceChanger;
 
-public sealed class NativeVstHost : IDisposable
+public sealed class NativeVstHost : IAudioPluginHost
 {
     private IntPtr _handle;
     private int _inputChannels;
@@ -129,6 +130,17 @@ public sealed class NativeVstHost : IDisposable
         {
             throw CreateUnavailableException(ex);
         }
+    }
+
+    public Size? GetEditorSize()
+    {
+        EnsureNotDisposed();
+        return null;
+    }
+
+    public void EditorIdle()
+    {
+        EnsureNotDisposed();
     }
 
     public void CloseEditor()

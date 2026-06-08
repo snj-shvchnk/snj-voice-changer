@@ -1,4 +1,4 @@
-# Snj Voice Changer v0 - development handoff
+# Snj Voice Changer - development handoff
 
 Цей файл створений як handoff-документ для нового чату з чистим контекстом. Якщо продовжувати розробку після закриття старого чату, починати треба саме звідси.
 
@@ -76,7 +76,7 @@ Snj Voice Changer - це Windows WinForms застосунок для real-time 
 
 - `TargetFramework`: `net9.0-windows`
 - `UseWindowsForms`: `true`
-- `ApplicationTitle`: `Snj Voice Changer v0`
+- `ApplicationTitle`: `Snj Voice Changer v1.2`
 - `Nullable`: `enable`
 - NuGet dependency: `NAudio`
 
@@ -97,7 +97,7 @@ dotnet build SnjVoiceChanger.sln
 Головна форма називається `MainForm`, title window:
 
 ```text
-Snj Voice Changer v0
+Snj Voice Changer v1.2
 ```
 
 Файли:
