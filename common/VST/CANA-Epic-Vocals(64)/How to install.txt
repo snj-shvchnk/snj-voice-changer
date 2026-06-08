@@ -1,0 +1,9 @@
+-Place the vst3 64-bit plugin in the destination folder of your 64-bit plug-ins.
+-Do the same for the other plug-in architectures in their respective folders if you wish. Supported architectures are vst2 and vst3 for 32-bit and 64-bit DAWs.
+
+Enjoy making good audio with free tools :)
+
+
+www.canasanmartin.com.ar
+www.astormastering.com.ar
+www.instagram.com/cana_san_martin
